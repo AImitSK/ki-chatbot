@@ -8,13 +8,19 @@ import { zusatzleistungenSchema } from './zusatzleistungen'
 import { rechnungenSchema } from './rechnungen'
 
 // Schema Types Array für Sanity Konfiguration
+// Reihenfolge ist wichtig: Basis-Schemas zuerst, dann abhängige Schemas
 const schemaTypes = [
-  environmentSchema,
-  projektSchema,
+  // Basis-Schemas (werden von anderen referenziert)
   userSchema,
   unternehmenSchema,
+  environmentSchema,
   vertragsmodelleSchema,
   zusatzleistungenSchema,
+
+  // Schemas mit Referenzen
+  projektSchema,
+
+  // Abhängige Schemas
   rechnungenSchema,
 ]
 

@@ -1,0 +1,9 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Benutzerdefinierte Variablen und Stile */
+:root {
+  --font-sans: Inter, sans-serif;
+  --font-sans--font-feature-settings: "cv11";
+}

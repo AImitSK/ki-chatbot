@@ -93,7 +93,7 @@ export const environmentSchema = defineType({
             return {
                 title: `Bot: ${title}`,
                 subtitle: `${active ? 'Aktiv' : 'Inaktiv'}${description ? ' - ' + description : ''}`,
-                media: active ? '🟢' : '🔴'
+                media: active ? 'ture' : 'false'
             }
         }
     },

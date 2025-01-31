@@ -1,5 +1,6 @@
 // src/sanity/schemaTypes/projekte.ts
 import { defineType, defineField } from 'sanity'
+import type { ValidationContext } from '@sanity/types'
 
 export const projektSchema = defineType({
     name: 'projekte',
@@ -10,7 +11,23 @@ export const projektSchema = defineType({
             name: 'titel',
             title: 'Titel',
             type: 'string',
-            validation: Rule => Rule.required()
+            validation: Rule => Rule
+                .required()
+                .min(2)
+                .max(100)
+                .custom((titel, context: ValidationContext) => {
+                    if (!titel) return true
+
+                    const client = context.getClient({apiVersion: '2024-01-29'})
+                    const query = `*[_type == "projekte" && titel == $titel && !(_id in [$id])][0]`
+
+                    return client.fetch(query, {
+                        titel,
+                        id: context.document?._id || 'none'
+                    }).then(exists => {
+                        return exists ? 'Ein Projekt mit diesem Titel existiert bereits' : true
+                    })
+                })
         }),
         defineField({
             name: 'slug',
@@ -28,21 +45,18 @@ export const projektSchema = defineType({
             type: 'array',
             of: [{
                 type: 'reference',
-                to: [{ type: 'user' }],
-                options: {
-                    filter: 'aktiv == true'
-                }
+                to: [{ type: 'user' }]
             }],
-            validation: Rule => Rule.required().min(1)
+            validation: Rule => Rule
+                .required()
+                .min(1)
+                .unique()
         }),
         defineField({
             name: 'unternehmen',
             title: 'Unternehmen',
             type: 'reference',
             to: [{ type: 'unternehmen' }],
-            options: {
-                filter: 'aktiv == true'
-            },
             validation: Rule => Rule.required()
         }),
         defineField({
@@ -50,9 +64,6 @@ export const projektSchema = defineType({
             title: 'Rechnungsempfänger',
             type: 'reference',
             to: [{ type: 'user' }],
-            options: {
-                filter: 'aktiv == true && role == "billing"'
-            },
             validation: Rule => Rule.required()
         }),
         defineField({
@@ -60,21 +71,25 @@ export const projektSchema = defineType({
             title: 'Vertragsmodell',
             type: 'reference',
             to: [{ type: 'vertragsmodelle' }],
-            options: {
-                filter: 'aktiv == true'
-            },
             validation: Rule => Rule.required()
         }),
         defineField({
             name: 'vertragsbeginn',
             title: 'Vertragsbeginn',
             type: 'date',
-            validation: Rule => Rule.required()
+            validation: Rule => Rule.required(),
+            options: {
+                dateFormat: 'DD.MM.YYYY'
+            }
         }),
         defineField({
             name: 'vertragsende',
             title: 'Vertragsende',
-            type: 'date'
+            type: 'date',
+            options: {
+                dateFormat: 'DD.MM.YYYY'
+            },
+            validation: Rule => Rule.min(Rule.valueOfField('vertragsbeginn'))
         }),
         defineField({
             name: 'aiSpendLimit',
@@ -92,20 +107,15 @@ export const projektSchema = defineType({
             type: 'array',
             of: [{
                 type: 'reference',
-                to: [{ type: 'zusatzleistungen' }],
-                options: {
-                    filter: 'aktiv == true'
-                }
-            }]
+                to: [{ type: 'zusatzleistungen' }]
+            }],
+            validation: Rule => Rule.unique()
         }),
         defineField({
             name: 'environment',
             title: 'Environment',
             type: 'reference',
             to: [{ type: 'environment' }],
-            options: {
-                filter: 'aktiv == true'
-            },
             validation: Rule => Rule.required()
         }),
         defineField({
@@ -131,3 +141,4 @@ export const projektSchema = defineType({
         }
     }
 })
+

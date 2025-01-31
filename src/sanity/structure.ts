@@ -1,56 +1,60 @@
-import type {StructureBuilder} from 'sanity/structure'
+// src/sanity/structure.ts
+import { type StructureBuilder } from 'sanity/desk'
+import dynamic from 'next/dynamic'
 
-export const structure = (S: StructureBuilder) =>
-    S.list()
+const InvoiceList = dynamic(() => import('./components/InvoiceList'))
+
+const structureBuilder = (S: StructureBuilder) => {
+    return S.list()
         .title('Inhalt')
         .items([
             S.listItem()
                 .title('Projekte')
+                .schemaType('projekte')
                 .child(
-                    S.documentList()
+                    S.documentTypeList('projekte')
                         .title('Projekte')
-                        .filter('_type == "projekte"')
+                        .child((documentId) => {
+                            return S.document()
+                                .documentId(documentId)
+                                .schemaType('projekte')
+                                .views([
+                                    S.view.form(),
+                                    S.view.component(InvoiceList).options({ documentId }).title('Rechnungen')
+                                ])
+                        })
                 ),
+
             S.listItem()
                 .title('Benutzer')
-                .child(
-                    S.documentList()
-                        .title('Benutzer')
-                        .filter('_type == "user"')
-                ),
+                .schemaType('user')
+                .child(S.documentTypeList('user').title('Benutzer')),
+
             S.listItem()
                 .title('Unternehmen')
-                .child(
-                    S.documentList()
-                        .title('Unternehmen')
-                        .filter('_type == "unternehmen"')
-                ),
+                .schemaType('unternehmen')
+                .child(S.documentTypeList('unternehmen').title('Unternehmen')),
+
             S.listItem()
                 .title('Vertragsmodelle')
-                .child(
-                    S.documentList()
-                        .title('Vertragsmodelle')
-                        .filter('_type == "vertragsmodelle"')
-                ),
+                .schemaType('vertragsmodelle')
+                .child(S.documentTypeList('vertragsmodelle').title('Vertragsmodelle')),
+
             S.listItem()
                 .title('Zusatzleistungen')
-                .child(
-                    S.documentList()
-                        .title('Zusatzleistungen')
-                        .filter('_type == "zusatzleistungen"')
-                ),
+                .schemaType('zusatzleistungen')
+                .child(S.documentTypeList('zusatzleistungen').title('Zusatzleistungen')),
+
             S.listItem()
                 .title('Rechnungen')
-                .child(
-                    S.documentList()
-                        .title('Rechnungen')
-                        .filter('_type == "rechnungen"')
-                ),
+                .schemaType('rechnungen')
+                .child(S.documentTypeList('rechnungen').title('Rechnungen')),
+
             S.listItem()
                 .title('Environments')
-                .child(
-                    S.documentList()
-                        .title('Environments')
-                        .filter('_type == "environment"')
-                ),
+                .schemaType('environment')
+                .child(S.documentTypeList('environment').title('Environments'))
         ])
+}
+
+export default structureBuilder

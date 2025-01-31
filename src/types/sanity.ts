@@ -111,3 +111,24 @@ export type CustomValidationFunction = (
     value: unknown,
     context: CustomValidationContext
 ) => ValidationResult
+
+
+// Rechnungen Componete
+export interface Rechnung extends BaseDocument, Noteable {
+    _type: 'rechnungen'
+    rechnungsnummer: number
+    rechnungsdatum: string
+    projekt: Reference
+    rechnungsPDF: {
+        _type: 'file'
+        asset: {
+            _ref: string
+            _type: 'reference'
+        }
+    }
+    betrag: number
+    bezahlt: boolean
+    zahlungsdatum?: string
+    createdAt: string
+    updatedAt: string
+}

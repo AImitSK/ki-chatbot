@@ -10,22 +10,6 @@ export const vertragsmodelleSchema = defineType({
             name: 'name',
             title: 'Name',
             type: 'string',
-            validation: Rule => Rule
-                .required()
-                .custom(async (name, context) => {
-                    if (!name) return true
-
-                    const client = context.getClient({apiVersion: '2024-01-29'})
-                    const query = `*[_type == "vertragsmodelle" && name == $name && !(_id in [$id])][0]`
-                    const params = {
-                        name,
-                        id: context.document?._id || 'none'
-                    }
-
-                    const existingDoc = await client.fetch(query, params)
-                    return existingDoc ? 'Ein Vertragsmodell mit diesem Namen existiert bereits' : true
-                }),
-            description: 'Ein einzigartiger Name für das Vertragsmodell'
         }),
         defineField({
             name: 'beschreibung',
