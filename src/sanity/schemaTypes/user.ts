@@ -1,6 +1,6 @@
 // src/sanity/schemaTypes/user.ts
 import { defineType, defineField } from 'sanity'
-import type { ValidationContext } from 'sanity'
+import type { ValidationContext } from '@sanity/types'
 
 export const userSchema = defineType({
     name: 'user',
@@ -11,39 +11,49 @@ export const userSchema = defineType({
             name: 'name',
             title: 'Name',
             type: 'string',
-            validation: Rule => Rule.required().min(2).max(100)
+            validation: Rule => Rule
+                .required()
+                .min(2)
+                .max(100)
+                .error('Der Name muss zwischen 2 und 100 Zeichen lang sein')
         }),
         defineField({
             name: 'email',
             title: 'Email',
             type: 'string',
-            validation: Rule => Rule.required().email()
-                .custom(async (email: string | undefined, context: ValidationContext) => {
+            validation: Rule => Rule
+                .required()
+                .email()
+                .custom<string>((email, context: ValidationContext) => {
                     if (!email) return true
-                    const id = context.document?._id
+
                     const client = context.getClient({apiVersion: '2024-01-29'})
-                    const existingUser = await client.fetch(
-                        `*[_type == "user" && email == $email && _id != $id][0]`,
-                        { email, id }
-                    )
-                    return existingUser ? 'Diese Email-Adresse wird bereits verwendet' : true
+                    return client.fetch(`
+                        *[_type == "user" && email == $email && _id != $id][0]
+                    `, {
+                        email,
+                        id: context.document?._id
+                    }).then(existingUser => {
+                        return existingUser ? 'Diese Email-Adresse wird bereits verwendet' : true
+                    })
                 })
         }),
         defineField({
             name: 'telefon',
             title: 'Telefon',
             type: 'string',
-            validation: Rule => Rule.custom((tel) => {
-                if (tel && !tel.match(/^[+\d\s-()]*$/)) {
-                    return 'Bitte geben Sie eine gültige Telefonnummer ein'
-                }
-                return true
+            validation: Rule => Rule.custom<string>(telefon => {
+                if (!telefon) return true
+                // Erlaubt: +49123456789, 0123-456789, (0123) 456789, etc.
+                const telefonRegex = /^[+\d\s-()]*$/
+                return telefonRegex.test(telefon) ? true : 'Bitte geben Sie eine gültige Telefonnummer ein'
             })
         }),
         defineField({
             name: 'position',
             title: 'Position',
             type: 'string',
+            description: 'Position/Rolle im Unternehmen'
         }),
         defineField({
             name: 'avatar',
@@ -58,15 +68,15 @@ export const userSchema = defineType({
                     name: 'alt',
                     type: 'string',
                     title: 'Alternative Text',
+                    description: 'Wichtig für Barrierefreiheit'
                 }
-            ]
-        }),
-        defineField({
-            name: 'aktiv',
-            title: 'Aktiv',
-            type: 'boolean',
-            initialValue: true,
-            validation: Rule => Rule.required()
+            ],
+            validation: Rule => Rule.custom<{ asset?: { _ref: string; _type: 'reference' }; alt?: string }>((avatar) => {
+                if (avatar?.asset && !avatar.alt) {
+                    return 'Bitte fügen Sie einen alternativen Text für das Avatar-Bild hinzu'
+                }
+                return true
+            })
         }),
         defineField({
             name: 'role',
@@ -74,38 +84,75 @@ export const userSchema = defineType({
             type: 'string',
             options: {
                 list: [
-                    { title: 'Admin', value: 'admin' },
-                    { title: 'Rechnungsempfänger', value: 'billing' },
-                    { title: 'Benutzer', value: 'user' }
-                ]
+                    {title: 'Admin', value: 'admin'},
+                    {title: 'Rechnungsempfänger', value: 'billing'},
+                    {title: 'Benutzer', value: 'user'}
+                ],
+                layout: 'radio'
             },
             initialValue: 'user',
             validation: Rule => Rule.required()
         }),
         defineField({
+            name: 'aktiv',
+            title: 'Aktiv',
+            type: 'boolean',
+            initialValue: true,
+            validation: Rule => Rule.required(),
+            description: 'Inaktive Benutzer können sich nicht einloggen'
+        }),
+        defineField({
             name: 'createdAt',
-            title: 'Created at',
+            title: 'Erstellt am',
             type: 'datetime',
-            initialValue: () => new Date().toISOString(),
-            readOnly: true
+            readOnly: true,
+            initialValue: () => new Date().toISOString()
         }),
         defineField({
             name: 'updatedAt',
-            title: 'Updated at',
+            title: 'Aktualisiert am',
             type: 'datetime',
-            initialValue: () => new Date().toISOString(),
+            readOnly: true,
+            initialValue: () => new Date().toISOString()
+        }),
+        defineField({
+            name: 'lastLogin',
+            title: 'Letzter Login',
+            type: 'datetime',
+            readOnly: true
         }),
         defineField({
             name: 'password',
             type: 'string',
             hidden: true
+        }),
+        defineField({
+            name: 'notizen',
+            title: 'Interne Notizen',
+            type: 'text',
+            rows: 3
         })
     ],
     preview: {
         select: {
             title: 'name',
             subtitle: 'email',
+            role: 'role',
+            aktiv: 'aktiv',
             media: 'avatar'
+        },
+        prepare: ({title, subtitle, role, aktiv, media}) => {
+            const roleLabels = {
+                admin: '👑 Admin',
+                billing: '💰 Rechnungsempfänger',
+                user: '👤 Benutzer'
+            }
+
+            return {
+                title: title,
+                subtitle: `${subtitle} - ${roleLabels[role as keyof typeof roleLabels]} ${aktiv ? '✓' : '❌'}`,
+                media: media
+            }
         }
     },
     orderings: [
@@ -117,10 +164,18 @@ export const userSchema = defineType({
             ]
         },
         {
-            title: 'Erstelldatum',
-            name: 'createdAtDesc',
+            title: 'Rolle',
+            name: 'roleAsc',
             by: [
-                {field: 'createdAt', direction: 'desc'}
+                {field: 'role', direction: 'asc'},
+                {field: 'name', direction: 'asc'}
+            ]
+        },
+        {
+            title: 'Letzte Aktivität',
+            name: 'lastLoginDesc',
+            by: [
+                {field: 'lastLogin', direction: 'desc'}
             ]
         }
     ]

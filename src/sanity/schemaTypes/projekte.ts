@@ -1,4 +1,4 @@
-// src/sanity/schemaTypes
+// src/sanity/schemaTypes/projekte.ts
 import { defineType, defineField } from 'sanity'
 
 export const projektSchema = defineType({
@@ -10,7 +10,7 @@ export const projektSchema = defineType({
             name: 'titel',
             title: 'Titel',
             type: 'string',
-            validation: (Rule) => Rule.required().min(2).max(100)
+            validation: Rule => Rule.required()
         }),
         defineField({
             name: 'slug',
@@ -20,7 +20,7 @@ export const projektSchema = defineType({
                 source: 'titel',
                 maxLength: 96
             },
-            validation: (Rule) => Rule.required()
+            validation: Rule => Rule.required()
         }),
         defineField({
             name: 'users',
@@ -33,34 +33,43 @@ export const projektSchema = defineType({
                     filter: 'aktiv == true'
                 }
             }],
-            validation: (Rule) => Rule.required().min(1)
+            validation: Rule => Rule.required().min(1)
         }),
         defineField({
             name: 'unternehmen',
             title: 'Unternehmen',
             type: 'reference',
             to: [{ type: 'unternehmen' }],
-            validation: (Rule) => Rule.required()
+            options: {
+                filter: 'aktiv == true'
+            },
+            validation: Rule => Rule.required()
         }),
         defineField({
             name: 'rechnungsempfaenger',
             title: 'Rechnungsempfänger',
             type: 'reference',
             to: [{ type: 'user' }],
-            validation: (Rule) => Rule.required()
+            options: {
+                filter: 'aktiv == true && role == "billing"'
+            },
+            validation: Rule => Rule.required()
         }),
         defineField({
             name: 'vertragsmodell',
             title: 'Vertragsmodell',
             type: 'reference',
             to: [{ type: 'vertragsmodelle' }],
-            validation: (Rule) => Rule.required()
+            options: {
+                filter: 'aktiv == true'
+            },
+            validation: Rule => Rule.required()
         }),
         defineField({
             name: 'vertragsbeginn',
             title: 'Vertragsbeginn',
             type: 'date',
-            validation: (Rule) => Rule.required()
+            validation: Rule => Rule.required()
         }),
         defineField({
             name: 'vertragsende',
@@ -71,7 +80,11 @@ export const projektSchema = defineType({
             name: 'aiSpendLimit',
             title: 'AI Spend-Limit',
             type: 'number',
-            validation: (Rule) => Rule.required().min(0)
+            validation: Rule => Rule
+                .required()
+                .min(0)
+                .precision(2),
+            description: 'Monatliches Limit für AI-Ausgaben in Euro'
         }),
         defineField({
             name: 'zusatzleistungen',
@@ -79,7 +92,10 @@ export const projektSchema = defineType({
             type: 'array',
             of: [{
                 type: 'reference',
-                to: [{ type: 'zusatzleistungen' }]
+                to: [{ type: 'zusatzleistungen' }],
+                options: {
+                    filter: 'aktiv == true'
+                }
             }]
         }),
         defineField({
@@ -87,7 +103,10 @@ export const projektSchema = defineType({
             title: 'Environment',
             type: 'reference',
             to: [{ type: 'environment' }],
-            validation: (Rule) => Rule.required()
+            options: {
+                filter: 'aktiv == true'
+            },
+            validation: Rule => Rule.required()
         }),
         defineField({
             name: 'notizen',
@@ -100,11 +119,15 @@ export const projektSchema = defineType({
         select: {
             title: 'titel',
             company: 'unternehmen.name',
-            contract: 'vertragsmodell.name'
+            contract: 'vertragsmodell.name',
+            endDate: 'vertragsende'
         },
-        prepare: ({title, company, contract}: {title: string, company: string, contract: string}) => ({
-            title: title,
-            subtitle: `${company} - ${contract}`
-        })
+        prepare: ({title = '', company = '', contract = '', endDate}) => {
+            const isExpired = endDate && new Date(endDate) < new Date()
+            return {
+                title,
+                subtitle: `${company} - ${contract}${isExpired ? ' (abgelaufen)' : ''}`
+            }
+        }
     }
 })

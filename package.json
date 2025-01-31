@@ -17,9 +17,7 @@
     "next": "15.1.6",
     "next-auth-sanity": "^1.5.3",
     "next-sanity": "^9.8.46",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "sanity": "^3.72.1",
+    "sanity": "^3.16.4",
     "styled-components": "^6.1.14"
   },
   "devDependencies": {

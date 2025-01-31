@@ -1,20 +1,6 @@
 // src/sanity/schemaTypes/zusatzleistungen.ts
 import { defineType, defineField } from 'sanity'
-import type { ValidationContext, SanityDocument } from 'sanity'
-
-interface ZusatzleistungDocument extends SanityDocument {
-    _type: 'zusatzleistungen'
-    leistung?: string
-}
-
-type KategorieType = 'training' | 'support' | 'development' | 'other'
-
-const kategorieEmojis: Record<KategorieType, string> = {
-    training: '📚',
-    support: '🛟',
-    development: '💻',
-    other: '🔧'
-}
+import type { ValidationContext } from '@sanity/types'
 
 export const zusatzleistungenSchema = defineType({
     name: 'zusatzleistungen',
@@ -25,22 +11,38 @@ export const zusatzleistungenSchema = defineType({
             name: 'leistung',
             title: 'Leistung',
             type: 'string',
-            validation: Rule => Rule.required().min(2),
-            description: 'Name der Zusatzleistung'
+            validation: Rule => Rule
+                .required()
+                .min(2)
+                .custom<string>((leistung, context: ValidationContext) => {
+                    if (!leistung) return true
+
+                    const client = context.getClient({apiVersion: '2024-01-29'})
+                    return client.fetch(`
+                        *[_type == "zusatzleistungen" && leistung == $leistung && _id != $id][0]
+                    `, {
+                        leistung,
+                        id: context.document?._id
+                    }).then(existing => {
+                        return existing ? 'Eine Zusatzleistung mit diesem Namen existiert bereits' : true
+                    })
+                })
         }),
         defineField({
             name: 'beschreibung',
             title: 'Beschreibung',
             type: 'text',
             rows: 3,
-            description: 'Detaillierte Beschreibung der Zusatzleistung'
+            validation: Rule => Rule.max(1000)
         }),
         defineField({
             name: 'preis',
             title: 'Preis',
             type: 'number',
-            validation: Rule => Rule.required().min(0),
-            description: 'Preis in Euro (netto)'
+            validation: Rule => Rule
+                .required()
+                .precision(2)
+                .positive()
         }),
         defineField({
             name: 'kategorie',
@@ -54,21 +56,20 @@ export const zusatzleistungenSchema = defineType({
                     {title: 'Sonstiges', value: 'other'}
                 ]
             },
-            validation: Rule => Rule.required()
+            validation: Rule => Rule.required(),
+            initialValue: 'other'
         }),
         defineField({
             name: 'aktiv',
             title: 'Aktiv',
             type: 'boolean',
-            initialValue: true,
-            description: 'Ist diese Zusatzleistung aktuell buchbar?'
+            initialValue: true
         }),
         defineField({
             name: 'einmalig',
             title: 'Einmalige Leistung',
             type: 'boolean',
-            initialValue: true,
-            description: 'Einmalige oder wiederkehrende Leistung'
+            initialValue: true
         }),
         defineField({
             name: 'verfuegbarAb',
@@ -78,32 +79,42 @@ export const zusatzleistungenSchema = defineType({
                 type: 'reference',
                 to: [{type: 'vertragsmodelle'}]
             }],
-            description: 'In welchen Vertragsmodellen ist diese Zusatzleistung verfügbar?'
+            validation: Rule => Rule.unique()
         }),
         defineField({
-            name: 'icon',
-            title: 'Icon',
-            type: 'image',
-            options: {
-                hotspot: true
-            },
-            description: 'Icon für die Zusatzleistung'
+            name: 'notizen',
+            title: 'Notizen',
+            type: 'text',
+            rows: 3
         })
     ],
     preview: {
         select: {
             title: 'leistung',
             preis: 'preis',
-            einmalig: 'einmalig',
-            aktiv: 'aktiv',
             kategorie: 'kategorie',
-            media: 'icon'
+            einmalig: 'einmalig',
+            aktiv: 'aktiv'
         },
-        prepare: ({title, preis, einmalig, aktiv, kategorie, media}) => {
+        prepare: ({
+                      title = 'Neue Leistung',
+                      preis = 0,
+                      kategorie = 'other',
+                      einmalig = false,
+                      aktiv = false
+                  }) => {
+            const kategorieLabels: Record<string, string> = {
+                training: 'Training',
+                support: 'Support',
+                development: 'Entwicklung',
+                other: 'Sonstiges'
+            }
+
+            const kategorieLabel = kategorieLabels[kategorie] || 'Sonstiges'
+
             return {
-                title: title,
-                subtitle: `${preis}€ ${einmalig ? '(einmalig)' : '(wiederkehrend)'} ${aktiv ? '✓' : '❌'}`,
-                media: media || kategorieEmojis[kategorie as KategorieType] || '📦'
+                title,
+                subtitle: `${kategorieLabel} - ${preis.toFixed(2)}€ ${einmalig ? '(einmalig)' : '(wiederkehrend)'} ${aktiv ? 'Aktiv' : 'Inaktiv'}`
             }
         }
     },
@@ -123,21 +134,5 @@ export const zusatzleistungenSchema = defineType({
                 {field: 'leistung', direction: 'asc'}
             ]
         }
-    ],
-    validation: Rule => Rule.custom(async (doc: SanityDocument | undefined, context: ValidationContext) => {
-        if (!doc || !doc._type || doc._type !== 'zusatzleistungen') return true
-
-        const value = doc as ZusatzleistungDocument
-        if (!value.leistung) return true
-
-        const client = context.getClient({apiVersion: '2024-01-29'})
-        const existingService = await client.fetch(`
-     *[_type == "zusatzleistungen" && leistung == $leistung && _id != $id][0]
-   `, {
-            leistung: value.leistung,
-            id: value._id
-        })
-
-        return existingService ? 'Eine Zusatzleistung mit diesem Namen existiert bereits' : true
-    })
+    ]
 })

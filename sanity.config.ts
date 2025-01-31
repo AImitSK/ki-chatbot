@@ -1,20 +1,23 @@
 // sanity.config.ts
-'use client'
+import { defineConfig } from 'sanity'
+import { deskTool } from 'sanity/desk'
+import { visionTool } from '@sanity/vision'
+import schemaTypes from '@/sanity/schemaTypes'
+import { apiVersion, dataset, projectId } from '@/sanity/env'
 
-import {visionTool} from '@sanity/vision'
-import {defineConfig} from 'sanity'
-import {structureTool} from 'sanity/structure'
-import {apiVersion, dataset, projectId} from '@/sanity/env'
-import {schema} from '@/sanity/schemaTypes'
-import {structure} from '@/sanity/structure'
-
-export default defineConfig({
+const config = defineConfig({
   basePath: '/studio',
   projectId,
   dataset,
-  schema,
+  title: 'Chatbot Kunden-Backend',
+  apiVersion,
+  schema: {
+    types: schemaTypes
+  },
   plugins: [
-    structureTool({structure}),
-    visionTool({defaultApiVersion: apiVersion}),
+    deskTool(),
+    visionTool({defaultApiVersion: apiVersion})
   ],
 })
+
+export default config

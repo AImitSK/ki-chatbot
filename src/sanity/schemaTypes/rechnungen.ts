@@ -1,11 +1,6 @@
 // src/sanity/schemaTypes/rechnungen.ts
 import { defineType, defineField } from 'sanity'
-import type { ValidationContext, SanityDocument } from 'sanity'
-
-interface RechnungDocument extends SanityDocument {
-    _type: 'rechnungen'
-    rechnungsnummer?: number
-}
+import type { ValidationContext } from '@sanity/types'
 
 export const rechnungenSchema = defineType({
     name: 'rechnungen',
@@ -16,7 +11,23 @@ export const rechnungenSchema = defineType({
             name: 'rechnungsnummer',
             title: 'Rechnungsnummer',
             type: 'number',
-            validation: Rule => Rule.required().positive().integer(),
+            validation: Rule => Rule
+                .required()
+                .integer()
+                .positive()
+                .custom<number>((rechnungsnummer, context: ValidationContext) => {
+                    if (!rechnungsnummer) return true
+
+                    const client = context.getClient({apiVersion: '2024-01-29'})
+                    return client.fetch(`
+                        *[_type == "rechnungen" && rechnungsnummer == $nummer && _id != $id][0]
+                    `, {
+                        nummer: rechnungsnummer,
+                        id: context.document?._id
+                    }).then(existingInvoice => {
+                        return existingInvoice ? 'Diese Rechnungsnummer existiert bereits' : true
+                    })
+                }),
             description: 'Eindeutige Rechnungsnummer'
         }),
         defineField({
@@ -51,7 +62,10 @@ export const rechnungenSchema = defineType({
             name: 'betrag',
             title: 'Rechnungsbetrag',
             type: 'number',
-            validation: Rule => Rule.required().positive(),
+            validation: Rule => Rule
+                .required()
+                .precision(2)
+                .positive(),
             description: 'Gesamtbetrag der Rechnung in Euro'
         }),
         defineField({
@@ -64,13 +78,45 @@ export const rechnungenSchema = defineType({
             name: 'zahlungsdatum',
             title: 'Zahlungsdatum',
             type: 'date',
-            hidden: ({document}) => !document?.bezahlt
+            hidden: ({document}) => !document?.bezahlt,
+            validation: Rule => Rule.custom((zahlungsdatum: string | undefined, context: ValidationContext) => {
+                const doc = context.document as { bezahlt?: boolean; rechnungsdatum?: string } | undefined
+
+                if (doc?.bezahlt && !zahlungsdatum) {
+                    return 'Bei bezahlten Rechnungen muss ein Zahlungsdatum angegeben werden'
+                }
+
+                if (zahlungsdatum && doc?.rechnungsdatum) {
+                    const zahlungsDt = new Date(zahlungsdatum)
+                    const rechnungsDt = new Date(doc.rechnungsdatum)
+
+                    if (zahlungsDt < rechnungsDt) {
+                        return 'Das Zahlungsdatum kann nicht vor dem Rechnungsdatum liegen'
+                    }
+                }
+
+                return true
+            })
         }),
         defineField({
             name: 'notizen',
             title: 'Notizen',
             type: 'text',
             rows: 3
+        }),
+        defineField({
+            name: 'createdAt',
+            title: 'Erstellt am',
+            type: 'datetime',
+            readOnly: true,
+            initialValue: () => new Date().toISOString()
+        }),
+        defineField({
+            name: 'updatedAt',
+            title: 'Aktualisiert am',
+            type: 'datetime',
+            readOnly: true,
+            initialValue: () => new Date().toISOString()
         })
     ],
     preview: {
@@ -112,22 +158,5 @@ export const rechnungenSchema = defineType({
                 {field: 'rechnungsdatum', direction: 'desc'}
             ]
         }
-    ],
-    // Eindeutige Rechnungsnummer sicherstellen
-    validation: Rule => Rule.custom(async (doc: SanityDocument | undefined, context: ValidationContext) => {
-        if (!doc || !doc._type || doc._type !== 'rechnungen') return true
-
-        const value = doc as RechnungDocument
-        if (!value.rechnungsnummer) return true
-
-        const client = context.getClient({apiVersion: '2024-01-29'})
-        const existingInvoice = await client.fetch(`
-     *[_type == "rechnungen" && rechnungsnummer == $nummer && _id != $id][0]
-   `, {
-            nummer: value.rechnungsnummer,
-            id: value._id
-        })
-
-        return existingInvoice ? 'Diese Rechnungsnummer existiert bereits' : true
-    })
+    ]
 })

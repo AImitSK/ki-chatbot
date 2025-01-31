@@ -1,5 +1,6 @@
 // src/sanity/schemaTypes/unternehmen.ts
 import { defineType, defineField } from 'sanity'
+import type { ValidationContext } from '@sanity/types'
 
 export const unternehmenSchema = defineType({
     name: 'unternehmen',
@@ -10,7 +11,23 @@ export const unternehmenSchema = defineType({
             name: 'name',
             title: 'Unternehmen',
             type: 'string',
-            validation: Rule => Rule.required().min(2).max(100),
+            validation: Rule => Rule
+                .required()
+                .min(2)
+                .max(100)
+                .custom<string>((name, context: ValidationContext) => {
+                    if (!name) return true
+
+                    const client = context.getClient({apiVersion: '2024-01-29'})
+                    return client.fetch(`
+                        *[_type == "unternehmen" && name == $name && _id != $id][0]
+                    `, {
+                        name,
+                        id: context.document?._id
+                    }).then(existingCompany => {
+                        return existingCompany ? 'Ein Unternehmen mit diesem Namen existiert bereits' : true
+                    })
+                }),
             description: 'Offizieller Unternehmensname'
         }),
         defineField({
@@ -24,12 +41,14 @@ export const unternehmenSchema = defineType({
             name: 'plz',
             title: 'PLZ',
             type: 'string',
-            validation: Rule => Rule.required().custom((plz) => {
-                if (!plz?.match(/^[0-9]{5}$/)) {
-                    return 'Bitte geben Sie eine gültige PLZ ein (5 Ziffern)'
-                }
-                return true
-            })
+            validation: Rule => Rule
+                .required()
+                .length(5)
+                .regex(/^[0-9]{5}$/, {
+                    name: 'plz format',
+                    invert: false
+                })
+                .error('Bitte geben Sie eine gültige PLZ ein (5 Ziffern)'),
         }),
         defineField({
             name: 'ort',
@@ -54,32 +73,38 @@ export const unternehmenSchema = defineType({
         }),
         defineField({
             name: 'ustIdNr',
-            title: 'UST IDNr.',
+            title: 'USt-IdNr.',
             type: 'string',
             description: 'Format: DE123456789',
-            validation: Rule => Rule.custom((ustId) => {
-                if (ustId && !ustId.match(/^DE[0-9]{9}$/)) {
-                    return 'Bitte geben Sie eine gültige deutsche USt-IdNr. ein (Format: DE + 9 Ziffern)'
-                }
-                return true
-            })
+            validation: Rule => Rule
+                .custom<string>((ustId) => {
+                    if (!ustId) return true
+                    if (!ustId.match(/^DE[0-9]{9}$/)) {
+                        return 'Bitte geben Sie eine gültige deutsche USt-IdNr. ein (Format: DE + 9 Ziffern)'
+                    }
+                    return true
+                })
         }),
         defineField({
             name: 'telefon',
             title: 'Telefon',
             type: 'string',
-            validation: Rule => Rule.custom((tel) => {
-                if (tel && !tel.match(/^[+\d\s-()]*$/)) {
-                    return 'Bitte geben Sie eine gültige Telefonnummer ein'
-                }
-                return true
-            })
+            validation: Rule => Rule
+                .custom<string>((tel) => {
+                    if (!tel) return true
+                    if (!tel.match(/^[+\d\s-()]*$/)) {
+                        return 'Bitte geben Sie eine gültige Telefonnummer ein'
+                    }
+                    return true
+                })
         }),
         defineField({
             name: 'email',
             title: 'Email',
             type: 'string',
-            validation: Rule => Rule.email().error('Bitte geben Sie eine gültige E-Mail-Adresse ein')
+            validation: Rule => Rule
+                .email()
+                .error('Bitte geben Sie eine gültige E-Mail-Adresse ein')
         }),
         defineField({
             name: 'webseite',
@@ -94,8 +119,16 @@ export const unternehmenSchema = defineType({
             title: 'Unternehmenslogo',
             type: 'image',
             options: {
-                hotspot: true
-            }
+                hotspot: true,
+                accept: 'image/*'
+            },
+            fields: [
+                {
+                    name: 'alt',
+                    type: 'string',
+                    title: 'Alternative Text',
+                }
+            ]
         }),
         defineField({
             name: 'aktiv',
@@ -109,6 +142,20 @@ export const unternehmenSchema = defineType({
             title: 'Interne Notizen',
             type: 'text',
             rows: 3
+        }),
+        defineField({
+            name: 'createdAt',
+            title: 'Erstellt am',
+            type: 'datetime',
+            readOnly: true,
+            initialValue: () => new Date().toISOString()
+        }),
+        defineField({
+            name: 'updatedAt',
+            title: 'Aktualisiert am',
+            type: 'datetime',
+            readOnly: true,
+            initialValue: () => new Date().toISOString()
         })
     ],
     preview: {

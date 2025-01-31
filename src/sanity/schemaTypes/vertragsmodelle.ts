@@ -1,11 +1,5 @@
 // src/sanity/schemaTypes/vertragsmodelle.ts
 import { defineType, defineField } from 'sanity'
-import type { ValidationContext, SanityDocument } from 'sanity'
-
-interface VertragsmodellDocument extends SanityDocument {
-    _type: 'vertragsmodelle'
-    name?: string
-}
 
 export const vertragsmodelleSchema = defineType({
     name: 'vertragsmodelle',
@@ -16,21 +10,36 @@ export const vertragsmodelleSchema = defineType({
             name: 'name',
             title: 'Name',
             type: 'string',
-            validation: Rule => Rule.required().min(2),
-            description: 'Name des Vertragsmodells (z.B. "Basic", "Professional", "Enterprise")'
+            validation: Rule => Rule
+                .required()
+                .custom(async (name, context) => {
+                    if (!name) return true
+
+                    const client = context.getClient({apiVersion: '2024-01-29'})
+                    const query = `*[_type == "vertragsmodelle" && name == $name && !(_id in [$id])][0]`
+                    const params = {
+                        name,
+                        id: context.document?._id || 'none'
+                    }
+
+                    const existingDoc = await client.fetch(query, params)
+                    return existingDoc ? 'Ein Vertragsmodell mit diesem Namen existiert bereits' : true
+                }),
+            description: 'Ein einzigartiger Name für das Vertragsmodell'
         }),
         defineField({
             name: 'beschreibung',
             title: 'Beschreibung',
             type: 'text',
             rows: 4,
+            validation: Rule => Rule.max(1000),
             description: 'Detaillierte Beschreibung des Vertragsmodells und seiner Vorteile'
         }),
         defineField({
             name: 'preis',
             title: 'Preis',
             type: 'number',
-            validation: Rule => Rule.required().min(0),
+            validation: Rule => Rule.required().min(0).precision(2),
             description: 'Preis in Euro (netto)'
         }),
         defineField({
@@ -44,13 +53,14 @@ export const vertragsmodelleSchema = defineType({
                 ],
                 layout: 'radio'
             },
-            validation: Rule => Rule.required()
+            validation: Rule => Rule.required(),
+            initialValue: 'monthly'
         }),
         defineField({
             name: 'freeAiSpend',
             title: 'Free AI Spend',
             type: 'number',
-            validation: Rule => Rule.required().min(0),
+            validation: Rule => Rule.required().min(0).precision(2),
             description: 'Inkludiertes AI-Budget in Euro pro Monat'
         }),
         defineField({
@@ -65,7 +75,8 @@ export const vertragsmodelleSchema = defineType({
                 ],
                 layout: 'radio'
             },
-            validation: Rule => Rule.required()
+            validation: Rule => Rule.required(),
+            initialValue: 'email'
         }),
         defineField({
             name: 'hitlFunktion',
@@ -91,7 +102,8 @@ export const vertragsmodelleSchema = defineType({
                     {
                         name: 'feature',
                         title: 'Feature',
-                        type: 'string'
+                        type: 'string',
+                        validation: Rule => Rule.required()
                     },
                     {
                         name: 'included',
@@ -102,15 +114,14 @@ export const vertragsmodelleSchema = defineType({
                 ],
                 preview: {
                     select: {
-                        title: 'feature',
-                        included: 'included'
+                        title: 'feature'
                     },
-                    prepare: ({title, included}) => ({
-                        title: title,
-                        media: included ? '✅' : '❌'
+                    prepare: ({ title }) => ({
+                        title: title || 'Kein Name angegeben'
                     })
                 }
             }],
+            validation: Rule => Rule.unique(),
             description: 'Liste der Features in diesem Vertragsmodell'
         }),
         defineField({
@@ -118,53 +129,22 @@ export const vertragsmodelleSchema = defineType({
             title: 'Mindestlaufzeit',
             type: 'number',
             initialValue: 12,
-            description: 'Mindestlaufzeit in Monaten',
-            validation: Rule => Rule.min(1).max(36)
+            validation: Rule => Rule.required().integer().min(1).max(36),
+            description: 'Mindestlaufzeit in Monaten'
+        }),
+        defineField({
+            name: 'createdAt',
+            title: 'Erstellt am',
+            type: 'datetime',
+            readOnly: true,
+            initialValue: () => new Date().toISOString()
+        }),
+        defineField({
+            name: 'updatedAt',
+            title: 'Aktualisiert am',
+            type: 'datetime',
+            readOnly: true,
+            initialValue: () => new Date().toISOString()
         })
-    ],
-    preview: {
-        select: {
-            title: 'name',
-            preis: 'preis',
-            interval: 'zahlungsintervall',
-            aktiv: 'aktiv'
-        },
-        prepare: ({title, preis, interval, aktiv}) => ({
-            title: title,
-            subtitle: `${preis}€ ${interval === 'monthly' ? '/ Monat' : '/ Jahr'} ${aktiv ? '✓' : '❌'}`,
-            media: aktiv ? '📄' : '📝'
-        })
-    },
-    orderings: [
-        {
-            title: 'Preis aufsteigend',
-            name: 'preisAsc',
-            by: [
-                {field: 'preis', direction: 'asc'}
-            ]
-        },
-        {
-            title: 'Name',
-            name: 'nameAsc',
-            by: [
-                {field: 'name', direction: 'asc'}
-            ]
-        }
-    ],
-    validation: Rule => Rule.custom(async (doc: SanityDocument | undefined, context: ValidationContext) => {
-        if (!doc || !doc._type || doc._type !== 'vertragsmodelle') return true
-
-        const value = doc as VertragsmodellDocument
-        if (!value.name) return true
-
-        const client = context.getClient({apiVersion: '2024-01-29'})
-        const existingModel = await client.fetch(`
-      *[_type == "vertragsmodelle" && name == $name && _id != $id][0]
-    `, {
-            name: value.name,
-            id: value._id
-        })
-
-        return existingModel ? 'Ein Vertragsmodell mit diesem Namen existiert bereits' : true
-    })
+    ]
 })
