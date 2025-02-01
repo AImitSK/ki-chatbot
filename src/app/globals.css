@@ -3,6 +3,8 @@
 @tailwind utilities;
 
 :root {
+  --font-sans: Inter, sans-serif;
+  --font-sans--font-feature-settings: "cv11";
   --background: #ffffff;
   --foreground: #171717;
 }
@@ -17,5 +19,31 @@
 body {
   color: var(--foreground);
   background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+  font-feature-settings: var(--font-sans--font-feature-settings);
+}
+
+/* Spezifische Größen für Icons */
+.icon-small {
+  width: 1rem;
+  height: 1rem;
+}
+
+.icon-medium {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.icon-large {
+  width: 2rem;
+  height: 2rem;
+}
+
+/* Grundlegende Layoutstile */
+.sidebar-icon {
+  @apply w-5 h-5;  /* Tailwind-Klassen für Icon-Größen */
+}
+
+.dropdown-icon {
+  @apply w-4 h-4;
 }
