@@ -97,28 +97,19 @@ export function ApplicationLayout({
           <SidebarHeader>
             <Dropdown>
               <DropdownButton as={SidebarItem}>
-                <Avatar src="/teams/catalyst.svg" />
-                <SidebarLabel>Catalyst</SidebarLabel>
+                <Avatar src="/icon/avatar.svg" />
+                <SidebarLabel>SK Online Marketing</SidebarLabel>
                 <ChevronDownIcon />
               </DropdownButton>
               <DropdownMenu className="min-w-80 lg:min-w-64" anchor="bottom start">
-                <DropdownItem href="/settings">
-                  <Cog8ToothIcon />
-                  <DropdownLabel>Settings</DropdownLabel>
+                <DropdownItem href="/dashboard/profil">
+                  <UserCircleIcon />
+                  <DropdownLabel>Profil</DropdownLabel>
                 </DropdownItem>
                 <DropdownDivider />
-                <DropdownItem href="#">
-                  <Avatar slot="icon" src="/teams/catalyst.svg" />
-                  <DropdownLabel>Catalyst</DropdownLabel>
-                </DropdownItem>
-                <DropdownItem href="#">
-                  <Avatar slot="icon" initials="BE" className="bg-purple-500 text-white" />
-                  <DropdownLabel>Big Events</DropdownLabel>
-                </DropdownItem>
-                <DropdownDivider />
-                <DropdownItem href="#">
-                  <PlusIcon />
-                  <DropdownLabel>New team&hellip;</DropdownLabel>
+                <DropdownItem href="/dashboard/support">
+                  <QuestionMarkCircleIcon />
+                  <DropdownLabel>Support</DropdownLabel>
                 </DropdownItem>
               </DropdownMenu>
             </Dropdown>
@@ -128,41 +119,28 @@ export function ApplicationLayout({
             <SidebarSection>
               <SidebarItem href="/" current={pathname === '/'}>
                 <HomeIcon />
-                <SidebarLabel>Home</SidebarLabel>
+                <SidebarLabel>Dashboard</SidebarLabel>
               </SidebarItem>
-              <SidebarItem href="/events" current={pathname.startsWith('/events')}>
+              <SidebarItem href="/dashboard/profil" current={pathname.startsWith('/dashboard/profil')}>
+                <UserCircleIcon />
+                <SidebarLabel>Profil</SidebarLabel>
+              </SidebarItem>
+              <SidebarItem href="/dashboard/unternehmen" current={pathname.startsWith('/dashboard/unternehmen')}>
                 <Square2StackIcon />
-                <SidebarLabel>Events</SidebarLabel>
+                <SidebarLabel>Unternehmen</SidebarLabel>
               </SidebarItem>
-              <SidebarItem href="/orders" current={pathname.startsWith('/orders')}>
+              <SidebarItem href="/dashboard/vertrag" current={pathname.startsWith('/dashboard/vertrag')}>
                 <TicketIcon />
-                <SidebarLabel>Orders</SidebarLabel>
+                <SidebarLabel>Vertrag</SidebarLabel>
               </SidebarItem>
-              <SidebarItem href="/settings" current={pathname.startsWith('/settings')}>
-                <Cog6ToothIcon />
-                <SidebarLabel>Settings</SidebarLabel>
-              </SidebarItem>
-            </SidebarSection>
-
-            <SidebarSection className="max-lg:hidden">
-              <SidebarHeading>Upcoming Events</SidebarHeading>
-              {events.map((event) => (
-                <SidebarItem key={event.id} href={event.url}>
-                  {event.name}
-                </SidebarItem>
-              ))}
             </SidebarSection>
 
             <SidebarSpacer />
 
             <SidebarSection>
-              <SidebarItem href="#">
+              <SidebarItem href="/dashboard/support">
                 <QuestionMarkCircleIcon />
                 <SidebarLabel>Support</SidebarLabel>
-              </SidebarItem>
-              <SidebarItem href="#">
-                <SparklesIcon />
-                <SidebarLabel>Changelog</SidebarLabel>
               </SidebarItem>
             </SidebarSection>
           </SidebarBody>
