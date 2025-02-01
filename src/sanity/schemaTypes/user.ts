@@ -29,8 +29,8 @@ export const userSchema = defineType({
 
                     const client = context.getClient({apiVersion: '2024-01-29'})
                     return client.fetch(`
-                        *[_type == "user" && email == $email && _id != $id][0]
-                    `, {
+                       *[_type == "user" && email == $email && _id != $id][0]
+                   `, {
                         email,
                         id: context.document?._id
                     }).then(existingUser => {
@@ -124,7 +124,49 @@ export const userSchema = defineType({
         defineField({
             name: 'password',
             type: 'string',
-            hidden: true
+            hidden: true,
+            validation: Rule => Rule.required()
+        }),
+        defineField({
+            name: 'emailVerified',
+            type: 'datetime',
+            hidden: true,
+        }),
+        defineField({
+            name: 'accounts',
+            type: 'array',
+            hidden: true,
+            of: [
+                {
+                    type: 'object',
+                    fields: [
+                        { name: 'provider', type: 'string' },
+                        { name: 'type', type: 'string' },
+                        { name: 'providerAccountId', type: 'string' },
+                        { name: 'access_token', type: 'string' },
+                        { name: 'refresh_token', type: 'string' },
+                        { name: 'expires_at', type: 'number' },
+                        { name: 'token_type', type: 'string' },
+                        { name: 'scope', type: 'string' },
+                        { name: 'id_token', type: 'string' },
+                        { name: 'session_state', type: 'string' },
+                    ],
+                },
+            ],
+        }),
+        defineField({
+            name: 'sessions',
+            type: 'array',
+            hidden: true,
+            of: [
+                {
+                    type: 'object',
+                    fields: [
+                        { name: 'sessionToken', type: 'string' },
+                        { name: 'expires', type: 'datetime' },
+                    ],
+                },
+            ],
         }),
         defineField({
             name: 'notizen',
