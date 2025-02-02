@@ -24,19 +24,7 @@ export const userSchema = defineType({
             validation: Rule => Rule
                 .required()
                 .email()
-                .custom<string>((email, context: ValidationContext) => {
-                    if (!email) return true
-
-                    const client = context.getClient({apiVersion: '2024-01-29'})
-                    return client.fetch(`
-                       *[_type == "user" && email == $email && _id != $id][0]
-                   `, {
-                        email,
-                        id: context.document?._id
-                    }).then(existingUser => {
-                        return existingUser ? 'Diese Email-Adresse wird bereits verwendet' : true
-                    })
-                })
+            // Entfernen der unnötigen Unique-Validierung, da wir den User ja bearbeiten wollen
         }),
         defineField({
             name: 'telefon',

@@ -1,6 +1,25 @@
 // src/scripts/create-test-user.ts
-import { client } from '../lib/sanity/client'
+import { createClient } from '@sanity/client'
 import bcrypt from 'bcryptjs'
+import * as dotenv from 'dotenv'
+import path from 'path'
+
+// Lade .env.local
+dotenv.config({ path: path.resolve(process.cwd(), '.env.local') })
+
+// Überprüfe, ob der Token vorhanden ist
+if (!process.env.SANITY_API_TOKEN) {
+    console.error('SANITY_API_TOKEN ist nicht gesetzt')
+    process.exit(1)
+}
+
+const client = createClient({
+    projectId: "potbwnws",
+    dataset: "production",
+    useCdn: false,
+    apiVersion: '2024-01-29',
+    token: process.env.SANITY_API_TOKEN
+})
 
 async function createTestUser() {
     // Passwort hashen

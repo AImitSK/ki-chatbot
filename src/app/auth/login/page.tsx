@@ -3,10 +3,9 @@
 
 import { useState } from 'react'
 import { signIn } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Alert } from '@/components/ui/alert'
 import { Heading } from '@/components/ui/heading'
 
 export default function LoginPage() {
@@ -15,6 +14,8 @@ export default function LoginPage() {
     const [error, setError] = useState('')
     const [loading, setLoading] = useState(false)
     const router = useRouter()
+    const searchParams = useSearchParams()
+    const callbackUrl = searchParams.get('callbackUrl') || '/'
 
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault()
@@ -22,16 +23,17 @@ export default function LoginPage() {
         setLoading(true)
 
         try {
-            const result = await signIn('sanity-login', {
+            const result = await signIn('credentials', {
                 email,
                 password,
                 redirect: false,
+                callbackUrl,
             })
 
             if (result?.error) {
                 setError('Ungültige Email oder Passwort')
             } else {
-                router.push('/dashboard')
+                router.push(callbackUrl)
             }
         } catch (error) {
             setError('Ein Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.')
@@ -52,11 +54,6 @@ export default function LoginPage() {
                     {error && (
                         <div className="rounded-md bg-red-50 p-4">
                             <div className="flex">
-                                <div className="flex-shrink-0">
-                                    <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
-                                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                                    </svg>
-                                </div>
                                 <div className="ml-3">
                                     <p className="text-sm text-red-700">{error}</p>
                                 </div>
@@ -97,12 +94,6 @@ export default function LoginPage() {
                     >
                         {loading ? 'Wird geladen...' : 'Anmelden'}
                     </Button>
-
-                    <div className="text-sm text-center text-zinc-600">
-                        <a href="/auth/reset-password" className="hover:text-zinc-900">
-                            Passwort vergessen?
-                        </a>
-                    </div>
                 </form>
             </div>
         </div>

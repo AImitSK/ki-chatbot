@@ -1,6 +1,7 @@
-import './globals.css'  // Ändere den Import von tailwind.css zu globals.css
+// src/app/layout.tsx
+import './globals.css'
 import type { Metadata } from 'next'
-import type React from 'react'
+import AuthProvider from '@/components/providers/SessionProvider'
 import { ApplicationLayout } from './application-layout'
 import { getEvents } from '@/app/data'
 
@@ -13,7 +14,7 @@ export const metadata: Metadata = {
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-    let events = await getEvents()
+    const events = await getEvents()
 
     return (
         <html
@@ -21,7 +22,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             className="text-zinc-950 antialiased lg:bg-zinc-100 dark:bg-zinc-900 dark:text-white dark:lg:bg-zinc-950"
         >
         <body>
-        <ApplicationLayout events={events}>{children}</ApplicationLayout>
+        <AuthProvider>
+            <ApplicationLayout events={events}>{children}</ApplicationLayout>
+        </AuthProvider>
         </body>
         </html>
     )
