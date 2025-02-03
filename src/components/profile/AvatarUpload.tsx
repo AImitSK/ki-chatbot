@@ -8,8 +8,8 @@ import { useState, useRef } from 'react'
 import { urlFor } from '@/lib/sanity/image'
 
 interface AvatarUploadProps {
-    userData: User;
-    onAvatarUpdate: (newUserData: User) => void;
+    userData: User
+    onAvatarUpdate: (newUserData: User) => void
 }
 
 export function AvatarUpload({ userData, onAvatarUpdate }: AvatarUploadProps) {
@@ -31,9 +31,7 @@ export function AvatarUpload({ userData, onAvatarUpdate }: AvatarUploadProps) {
                 body: formData,
             })
 
-            if (!response.ok) {
-                throw new Error('Fehler beim Upload')
-            }
+            if (!response.ok) throw new Error('Upload fehlgeschlagen')
 
             const updatedUser = await response.json()
             onAvatarUpdate(updatedUser)

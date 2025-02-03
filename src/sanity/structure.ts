@@ -1,10 +1,10 @@
 // src/sanity/structure.ts
-import { type StructureBuilder } from 'sanity/desk'
+import { StructureBuilder } from 'sanity/desk'
 import dynamic from 'next/dynamic'
 
 const InvoiceList = dynamic(() => import('./components/InvoiceList'))
 
-const structureBuilder = (S: StructureBuilder) => {
+export default function structureBuilder(S: StructureBuilder) {
     return S.list()
         .title('Inhalt')
         .items([
@@ -56,5 +56,3 @@ const structureBuilder = (S: StructureBuilder) => {
                 .child(S.documentTypeList('environment').title('Environments'))
         ])
 }
-
-export default structureBuilder

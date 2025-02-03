@@ -1,22 +1,15 @@
 // src/lib/sanity/queries.ts
-import { client } from './client'
-import { User } from '@/types'
-import { getServerSession } from 'next-auth/next'
-import { authOptions } from '@/lib/auth/config'
+import { client } from '@/lib/sanity/client';
 
-export async function getUserData(): Promise<User> {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
-        throw new Error('Benutzer nicht angemeldet')
+export const getUserData = async () => {
+    try {
+        const userData = await client.fetch(
+            `*[_type == "user" && _id == $userId][0]`,
+            { userId: 'current-user-id' } // Die tatsächliche Benutzer-ID hier einfügen
+        );
+        return userData;
+    } catch (error) {
+        console.error('Fehler beim Abrufen der Benutzerdaten:', error);
+        throw new Error('Benutzerdaten konnten nicht abgerufen werden');
     }
-
-    const user = await client.fetch<User>(`*[_type == "user" && _id == $userId][0]`, {
-        userId: session.user.id,
-    })
-
-    if (!user) {
-        throw new Error('Benutzer nicht gefunden')
-    }
-
-    return user
-}
+};
