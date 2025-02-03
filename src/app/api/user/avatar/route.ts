@@ -6,37 +6,21 @@ import { client } from '@/lib/sanity/client'
 
 export async function POST(request: Request) {
     try {
-        // Session prüfen
         const session = await getServerSession(authOptions)
         if (!session?.user?.id) {
-            return NextResponse.json(
-                { error: 'Nicht authentifiziert' },
-                { status: 401 }
-            )
+            return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 })
         }
 
-        // Datei aus FormData extrahieren
         const formData = await request.formData()
-        const file = formData.get('avatar') as File | null
+        const file = formData.get('avatar') as File
 
         if (!file) {
-            return NextResponse.json(
-                { error: 'Keine Datei übermittelt' },
-                { status: 400 }
-            )
-        }
-
-        // Dateiformat prüfen
-        if (!file.type.startsWith('image/')) {
-            return NextResponse.json(
-                { error: 'Nur Bilddateien sind erlaubt' },
-                { status: 400 }
-            )
+            return NextResponse.json({ error: 'Keine Datei übermittelt' }, { status: 400 })
         }
 
         // Datei zu Sanity hochladen
-        const fileBuffer = await file.arrayBuffer()
-        const asset = await client.assets.upload('image', Buffer.from(fileBuffer), {
+        const buffer = await file.arrayBuffer()
+        const asset = await client.assets.upload('image', Buffer.from(buffer), {
             filename: file.name,
             contentType: file.type
         })
@@ -51,9 +35,8 @@ export async function POST(request: Request) {
                         _type: 'reference',
                         _ref: asset._id
                     },
-                    alt: session.user.name || 'User Avatar'
-                },
-                updatedAt: new Date().toISOString()
+                    alt: session.user.name
+                }
             })
             .commit()
 
@@ -62,36 +45,7 @@ export async function POST(request: Request) {
     } catch (error) {
         console.error('Fehler beim Avatar-Upload:', error)
         return NextResponse.json(
-            { error: 'Fehler beim Hochladen des Avatars' },
-            { status: 500 }
-        )
-    }
-}
-
-// DELETE-Route zum Entfernen des Avatars
-export async function DELETE(request: Request) {
-    try {
-        const session = await getServerSession(authOptions)
-        if (!session?.user?.id) {
-            return NextResponse.json(
-                { error: 'Nicht authentifiziert' },
-                { status: 401 }
-            )
-        }
-
-        // Avatar-Referenz entfernen
-        const updatedUser = await client
-            .patch(session.user.id)
-            .unset(['avatar'])
-            .set({ updatedAt: new Date().toISOString() })
-            .commit()
-
-        return NextResponse.json(updatedUser)
-
-    } catch (error) {
-        console.error('Fehler beim Entfernen des Avatars:', error)
-        return NextResponse.json(
-            { error: 'Fehler beim Entfernen des Avatars' },
+            { error: 'Fehler beim Upload' },
             { status: 500 }
         )
     }

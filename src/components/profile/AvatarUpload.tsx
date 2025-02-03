@@ -5,6 +5,7 @@ import { User } from '@/types'
 import { Avatar } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { useState, useRef } from 'react'
+import { urlFor } from '@/lib/sanity/image'
 
 interface AvatarUploadProps {
     userData: User;
@@ -47,7 +48,10 @@ export function AvatarUpload({ userData, onAvatarUpdate }: AvatarUploadProps) {
         <div className="flex items-center gap-4">
             <div className="relative">
                 <Avatar
-                    src={userData.avatar?.asset?._ref ? `/api/sanity/image/${userData.avatar.asset._ref}` : '/placeholder-avatar.png'}
+                    src={userData.avatar?.asset?._ref
+                        ? urlFor(userData.avatar).width(80).height(80).url()
+                        : '/placeholder-avatar.png'
+                    }
                     className="size-20"
                     alt={userData.name}
                 />
