@@ -3,12 +3,16 @@
 
 import { User } from '@/types'
 import { Button } from '@/components/ui/button'
+import { useState } from 'react'
+import { EmailChangeDialog } from '@/components/profile/EmailChangeDialog'
 
 interface AccountSettingsProps {
     user: User
 }
 
 export const AccountSettings = ({ user }: AccountSettingsProps) => {
+    const [isDialogOpen, setIsDialogOpen] = useState(false) // State für Dialog-Steuerung
+
     return (
         <div className="space-y-6">
             <h3 className="text-lg font-medium">Kontoeinstellungen</h3>
@@ -18,7 +22,10 @@ export const AccountSettings = ({ user }: AccountSettingsProps) => {
                     <div className="text-sm text-zinc-500">E-Mail</div>
                     <div className="flex items-center justify-between">
                         <div>{user.email}</div>
-                        <Button color="dark/zinc">
+                        <Button
+                            color="dark/zinc"
+                            onClick={() => setIsDialogOpen(true)} // Dialog öffnen
+                        >
                             E-Mail ändern
                         </Button>
                     </div>
@@ -39,6 +46,14 @@ export const AccountSettings = ({ user }: AccountSettingsProps) => {
                     <div>{new Date(user.lastLogin || Date.now()).toLocaleDateString('de-DE')}</div>
                 </div>
             </div>
+
+            {/* E-Mail ändern Dialog */}
+            {isDialogOpen && (
+                <EmailChangeDialog
+                    currentEmail={user.email}
+                    onClose={() => setIsDialogOpen(false)} // Dialog schließen
+                />
+            )}
         </div>
     )
 }

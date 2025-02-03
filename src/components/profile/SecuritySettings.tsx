@@ -5,6 +5,8 @@ import { useState } from 'react'
 import { User } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { validatePassword } from '@/lib/validation/password' // Neuer Import
+import { showSuccessToast, showErrorToast } from '@/components/ui/toast'
 
 interface SecuritySettingsProps {
     user: User
@@ -22,13 +24,15 @@ export const SecuritySettings = ({ user }: SecuritySettingsProps) => {
         e.preventDefault()
         setError(null)
 
-        if (newPassword !== confirmPassword) {
-            setError('Die Passwörter stimmen nicht überein')
+        // Validiere das neue Passwort
+        const validation = validatePassword(newPassword)
+        if (!validation.isValid) {
+            setError(validation.message)  // Jetzt ist message immer definiert
             return
         }
 
-        if (newPassword.length < 8) {
-            setError('Das Passwort muss mindestens 8 Zeichen lang sein')
+        if (newPassword !== confirmPassword) {
+            setError('Die Passwörter stimmen nicht überein')
             return
         }
 
@@ -45,17 +49,21 @@ export const SecuritySettings = ({ user }: SecuritySettingsProps) => {
                 }),
             })
 
+            const data = await response.json()
+
             if (!response.ok) {
-                const data = await response.json()
-                throw new Error(data.message || 'Fehler beim Ändern des Passworts')
+                throw new Error(data.message)
             }
 
+            showSuccessToast('Passwort wurde erfolgreich geändert')
             setIsChangingPassword(false)
             setCurrentPassword('')
             setNewPassword('')
             setConfirmPassword('')
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Ein unerwarteter Fehler ist aufgetreten')
+            const errorMessage = err instanceof Error ? err.message : 'Ein unerwarteter Fehler ist aufgetreten'
+            showErrorToast(errorMessage)
+            setError(errorMessage)
         } finally {
             setIsLoading(false)
         }

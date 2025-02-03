@@ -6,6 +6,7 @@ import { unternehmenSchema } from './unternehmen'
 import { vertragsmodelleSchema } from './vertragsmodelle'
 import { zusatzleistungenSchema } from './zusatzleistungen'
 import { rechnungenSchema } from './rechnungen'
+import { emailVerificationSchema } from './emailVerification'
 
 // Schema Types Array für Sanity Konfiguration
 // Reihenfolge ist wichtig: Basis-Schemas zuerst, dann abhängige Schemas
@@ -16,12 +17,9 @@ const schemaTypes = [
   environmentSchema,
   vertragsmodelleSchema,
   zusatzleistungenSchema,
-
-  // Schemas mit Referenzen
   projektSchema,
-
-  // Abhängige Schemas
   rechnungenSchema,
+  emailVerificationSchema,
 ]
 
 export default schemaTypes

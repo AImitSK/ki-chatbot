@@ -4,6 +4,7 @@ import type { Metadata } from 'next'
 import AuthProvider from '@/components/providers/SessionProvider'
 import { ApplicationLayout } from './application-layout'
 import { getEvents } from '@/app/data'
+import { ToastContainer } from '@/components/ui/toast'
 
 export const metadata: Metadata = {
     title: {
@@ -23,7 +24,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         >
         <body>
         <AuthProvider>
-            <ApplicationLayout events={events}>{children}</ApplicationLayout>
+            <ApplicationLayout events={events}>
+                {children}
+            </ApplicationLayout>
+            <ToastContainer />
         </AuthProvider>
         </body>
         </html>
