@@ -30,6 +30,12 @@ export default function LoginPage() {
                 callbackUrl,
             })
 
+            if (result?.error === '2FA_REQUIRED') {
+                // Wenn 2FA erforderlich ist, zur Verifizierungsseite weiterleiten
+                router.push(`/auth/verify-2fa?email=${encodeURIComponent(email)}&callbackUrl=${encodeURIComponent(callbackUrl)}`)
+                return
+            }
+
             if (result?.error) {
                 setError('Ungültige Email oder Passwort')
             } else {

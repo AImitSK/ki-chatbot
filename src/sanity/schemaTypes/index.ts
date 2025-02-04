@@ -19,7 +19,7 @@ const schemaTypes = [
   zusatzleistungenSchema,
   projektSchema,
   rechnungenSchema,
-  emailVerificationSchema,
+  emailVerificationSchema
 ]
 
 export default schemaTypes

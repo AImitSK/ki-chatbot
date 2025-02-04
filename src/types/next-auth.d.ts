@@ -1,43 +1,55 @@
-// src/types/next-auth.d.ts
-import type { DefaultSession, DefaultUser } from 'next-auth'
-import { SanityClient } from "next-sanity"
+// types/next-auth.d.ts
+import NextAuth from 'next-auth'
 
 declare module 'next-auth' {
-    interface Session {
-        user: {
-            id: string
-            role: string
-            aktiv: boolean
-        } & DefaultSession['user']
-    }
-
-    interface User extends DefaultUser {
+    interface User {
         id: string
-        role: string
-        aktiv: boolean
-    }
-}
-
-declare module 'next-auth/adapters' {
-    interface AdapterUser {
-        id: string
-        role: string
-        aktiv: boolean
+        name: string
         email: string
-        emailVerified: Date | null
-        name?: string | null
-        image?: string | null
+        role: 'admin' | 'billing' | 'user'
+        aktiv: boolean
+        avatar?: {
+            _type: 'image'
+            asset: {
+                _ref: string
+                _type: 'reference'
+            }
+        }
+        createdAt: string
+        updatedAt: string
+    }
+
+    interface Session {
+        user: User & {
+            id: string
+            role: 'admin' | 'billing' | 'user'
+            aktiv: boolean
+            avatar?: {
+                _type: 'image'
+                asset: {
+                    _ref: string
+                    _type: 'reference'
+                }
+            }
+            createdAt: string
+            updatedAt: string
+        }
     }
 }
 
-// Erweiterte Client-Type für Sanity
-declare module '@sanity/client' {
-    interface SanityClient {
-        config: () => {
-            projectId: string
-            dataset: string
-            apiVersion: string
-            useCdn: boolean
+declare module 'next-auth/jwt' {
+    interface JWT {
+        id: string
+        role: 'admin' | 'billing' | 'user'
+        aktiv: boolean
+        avatar?: {
+            _type: 'image'
+            asset: {
+                _ref: string
+                _type: 'reference'
+            }
         }
+        createdAt: string
+        updatedAt: string
     }
 }

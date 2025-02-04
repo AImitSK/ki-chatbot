@@ -1,4 +1,3 @@
-// src/app/application-layout.tsx
 'use client'
 
 import { Avatar } from '@/components/ui/avatar'
@@ -16,7 +15,6 @@ import {
   SidebarBody,
   SidebarFooter,
   SidebarHeader,
-  SidebarHeading,
   SidebarItem,
   SidebarLabel,
   SidebarSection,
@@ -28,31 +26,28 @@ import {
   ArrowRightStartOnRectangleIcon,
   ChevronDownIcon,
   ChevronUpIcon,
-  Cog8ToothIcon,
   LightBulbIcon,
-  PlusIcon,
   ShieldCheckIcon,
   UserCircleIcon,
 } from '@heroicons/react/16/solid'
 import {
-  Cog6ToothIcon,
   HomeIcon,
   QuestionMarkCircleIcon,
-  SparklesIcon,
   Square2StackIcon,
   TicketIcon,
 } from '@heroicons/react/20/solid'
 import { usePathname } from 'next/navigation'
 import { useSession, signOut } from 'next-auth/react'
+import { urlFor } from '@/lib/sanity/image'
 
 
-// Funktion zum Ermitteln des Avatar-Bilds
 function getUserAvatar(session: any) {
-  if (session?.user?.image) {
-    return session.user.image
+  if (session?.user?.avatar?.asset?._ref) {
+    return urlFor(session.user.avatar).width(80).height(80).url()
   }
-  return null
+  return '/icon/avatar.svg'
 }
+
 
 function AccountDropdownMenu({ anchor }: { anchor: 'top start' | 'bottom end' }) {
   return (
@@ -88,6 +83,7 @@ export function ApplicationLayout({
 }) {
   let pathname = usePathname()
   const { data: session } = useSession()
+  const avatarUrl = getUserAvatar(session)
 
   return (
       <SidebarLayout
@@ -97,7 +93,7 @@ export function ApplicationLayout({
               <NavbarSection>
                 <Dropdown>
                   <DropdownButton as={NavbarItem}>
-                    <Avatar src="/icon/avatar.svg" square />
+                    <Avatar src={avatarUrl} square />
                   </DropdownButton>
                   <AccountDropdownMenu anchor="bottom end" />
                 </Dropdown>
@@ -160,23 +156,25 @@ export function ApplicationLayout({
               <SidebarFooter className="max-lg:hidden">
                 <Dropdown>
                   <DropdownButton as={SidebarItem}>
-               <span className="flex min-w-0 items-center gap-3">
-                 <Avatar
-                     src={getUserAvatar(session)}
-                     initials={session?.user?.name?.charAt(0).toUpperCase() || '?'}
-                     className="size-10 bg-zinc-200 dark:bg-zinc-800"
-                     square
-                     alt={session?.user?.name || 'User Avatar'}
-                 />
-                 <span className="min-w-0">
-                   <span className="block truncate text-sm/5 font-medium text-zinc-950 dark:text-white">
-                     {session?.user?.name || 'Nicht angemeldet'}
-                   </span>
-                   <span className="block truncate text-xs/5 font-normal text-zinc-500 dark:text-zinc-400">
-                     {session?.user?.email}
-                   </span>
-                 </span>
-               </span>
+      <span className="flex min-w-0 items-center gap-3">
+        <Avatar
+            src={session?.user?.avatar?.asset?._ref
+                ? `https://${process.env.NEXT_PUBLIC_SANITY_PROJECT_ID}.api.sanity.io/v2024-01-29/images/${process.env.NEXT_PUBLIC_SANITY_DATASET}/${session.user.avatar.asset._ref}`
+                : '/icon/avatar.svg'}
+            initials={session?.user?.name?.charAt(0).toUpperCase() || '?'}
+            className="size-10 bg-zinc-200 dark:bg-zinc-800"
+            square
+            alt={session?.user?.name || 'User Avatar'}
+        />
+        <span className="min-w-0">
+          <span className="block truncate text-sm/5 font-medium text-zinc-950 dark:text-white">
+            {session?.user?.name || 'Nicht angemeldet'}
+          </span>
+          <span className="block truncate text-xs/5 font-normal text-zinc-500 dark:text-zinc-400">
+            {session?.user?.email}
+          </span>
+        </span>
+      </span>
                     <ChevronUpIcon />
                   </DropdownButton>
                   <AccountDropdownMenu anchor="top start" />

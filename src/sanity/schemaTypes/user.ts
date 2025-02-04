@@ -161,6 +161,32 @@ export const userSchema = defineType({
             title: 'Interne Notizen',
             type: 'text',
             rows: 3
+        }),
+
+        // Hier kommen die 2FA-Felder hin
+        defineField({
+            name: 'twoFactorEnabled',
+            title: 'Two Factor Authentication Enabled',
+            type: 'boolean',
+            initialValue: false
+        }),
+        defineField({
+            name: 'twoFactorSecret',
+            title: 'Two Factor Secret',
+            type: 'string',
+            hidden: true
+        }),
+        defineField({
+            name: 'tempTwoFactorSecret',
+            title: 'Temporary Two Factor Secret',
+            type: 'string',
+            hidden: true
+        }),
+        defineField({
+            name: 'twoFactorSetupPending',
+            title: 'Two Factor Setup Pending',
+            type: 'boolean',
+            initialValue: false
         })
     ],
     preview: {

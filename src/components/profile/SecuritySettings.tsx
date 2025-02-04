@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { validatePassword } from '@/lib/validation/password' // Neuer Import
 import { showSuccessToast, showErrorToast } from '@/components/ui/toast'
+import { TwoFactorSetup } from './TwoFactorSetup'
 
 interface SecuritySettingsProps {
     user: User
@@ -148,9 +149,7 @@ export const SecuritySettings = ({ user }: SecuritySettingsProps) => {
                     <p className="text-sm text-zinc-600 mb-2">
                         Erhöhen Sie die Sicherheit Ihres Kontos durch eine zusätzliche Authentifizierungsebene.
                     </p>
-                    <Button color="dark/zinc">
-                        2FA aktivieren
-                    </Button>
+                    <TwoFactorSetup isEnabled={user.twoFactorEnabled || false} />
                 </div>
 
                 <div>

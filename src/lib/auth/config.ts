@@ -1,71 +1,132 @@
-// src/lib/auth/config.ts
-import { NextAuthOptions } from 'next-auth'
-import CredentialsProvider from "next-auth/providers/credentials"
+import { AuthOptions } from 'next-auth'
+import CredentialsProvider from 'next-auth/providers/credentials'
 import { client } from '@/lib/sanity/client'
 import bcrypt from 'bcryptjs'
-import { urlFor } from '@/lib/sanity/image'
 
-export const authOptions: NextAuthOptions = {
+type UserRole = 'admin' | 'billing' | 'user'
+
+interface SanityUser {
+    _id: string
+    email: string
+    name: string
+    role: UserRole
+    aktiv: boolean
+    password: string
+    avatar?: {
+        _type: 'image'
+        asset: {
+            _ref: string
+            _type: 'reference'
+        }
+    }
+    twoFactorEnabled?: boolean
+    twoFactorSecret?: string
+    createdAt: string
+    updatedAt: string
+}
+
+export const authOptions: AuthOptions = {
     providers: [
         CredentialsProvider({
-            name: "credentials",
+            name: 'credentials',
             credentials: {
                 email: { label: "Email", type: "email" },
-                password: { label: "Password", type: "password" }
+                password: { label: "Password", type: "password" },
+                twoFactorVerified: { label: "2FA Verified", type: "text" }
             },
             async authorize(credentials) {
-                if (!credentials?.email || !credentials?.password) {
-                    return null
-                }
+                if (!credentials?.email) return null
 
-                const user = await client.fetch(
-                    `*[_type == "user" && email == $email && aktiv == true][0]`,
+                const user = await client.fetch<SanityUser>(
+                    `*[_type == "user" && email == $email][0]{
+                        _id,
+                        email,
+                        password,
+                        name,
+                        role,
+                        aktiv,
+                        avatar,
+                        twoFactorEnabled,
+                        twoFactorSecret,
+                        createdAt,
+                        updatedAt
+                    }`,
                     { email: credentials.email }
                 )
 
-                if (!user || !user.password) {
-                    return null
+                if (!user || !user.aktiv) {
+                    throw new Error('Ungültige Anmeldedaten')
                 }
 
-                const isValid = await bcrypt.compare(
-                    credentials.password,
-                    user.password
-                )
+                if (credentials.twoFactorVerified === 'true') {
+                    return {
+                        id: user._id,
+                        email: user.email,
+                        name: user.name,
+                        role: user.role,
+                        aktiv: user.aktiv,
+                        avatar: user.avatar,
+                        createdAt: user.createdAt,
+                        updatedAt: user.updatedAt
+                    }
+                }
 
+                if (!credentials.password) return null
+
+                const isValid = await bcrypt.compare(credentials.password, user.password)
                 if (!isValid) {
-                    return null
+                    throw new Error('Ungültige Anmeldedaten')
+                }
+
+                if (user.twoFactorEnabled) {
+                    throw new Error('2FA_REQUIRED')
                 }
 
                 return {
                     id: user._id,
-                    name: user.name,
                     email: user.email,
+                    name: user.name,
                     role: user.role,
                     aktiv: user.aktiv,
-                    image: user.avatar ? urlFor(user.avatar).width(100).url() : null
+                    avatar: user.avatar,
+                    createdAt: user.createdAt,
+                    updatedAt: user.updatedAt
                 }
             }
         })
     ],
-    pages: {
-        signIn: '/auth/login',
-    },
     callbacks: {
         async jwt({ token, user }) {
             if (user) {
-                token.id = user.id
-                token.role = user.role
-                token.aktiv = user.aktiv
+                return {
+                    ...token,
+                    id: user.id,
+                    role: user.role as UserRole,
+                    aktiv: user.aktiv,
+                    avatar: user.avatar,
+                    createdAt: user.createdAt,
+                    updatedAt: user.updatedAt
+                }
             }
             return token
         },
         async session({ session, token }) {
             if (session.user) {
-                session.user.id = token.id as string
-                session.user.role = token.role as string
-                session.user.aktiv = token.aktiv as boolean
+                session.user = {
+                    ...session.user,
+                    id: token.id,
+                    role: token.role as UserRole,
+                    aktiv: token.aktiv,
+                    avatar: token.avatar,
+                    createdAt: token.createdAt,
+                    updatedAt: token.updatedAt
+                }
             }
             return session
         }
+    },
+    pages: {
+        signIn: '/auth/login',
+        error: '/auth/error'
     }
 }
