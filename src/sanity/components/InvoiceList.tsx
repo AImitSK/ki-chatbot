@@ -1,8 +1,7 @@
 // src/sanity/components/InvoiceList.tsx
-import React from 'react'
-import { useClient } from 'sanity'
+import React, { useCallback, useEffect, useState } from 'react'
+import { sanityClient } from '@/lib/sanity/client' // Statt useClient()
 import { Box, Card, Stack, Text, Button, Flex } from '@sanity/ui'
-import { useCallback, useEffect, useState } from 'react'
 import { ChevronRightIcon } from '@sanity/icons'
 
 interface Invoice {
@@ -25,7 +24,6 @@ interface InvoiceListProps {
 }
 
 export default function InvoiceList({ documentId }: InvoiceListProps) {
-    const client = useClient()
     const [invoices, setInvoices] = useState<Invoice[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
@@ -39,8 +37,9 @@ export default function InvoiceList({ documentId }: InvoiceListProps) {
         try {
             setIsLoading(true)
             setError(null)
-            const result = await client.fetch<Invoice[]>(`
-                *[_type == "rechnungen" && projekt._ref == $projectId] | order(rechnungsdatum desc) {
+
+            const result = await sanityClient.fetch<Invoice[]>(`
+                *[_type == "rechnungen" && projekt._ref == $documentId] | order(rechnungsdatum desc) {
                     _id,
                     rechnungsnummer,
                     rechnungsdatum,
@@ -54,7 +53,7 @@ export default function InvoiceList({ documentId }: InvoiceListProps) {
                         }
                     }
                 }
-            `, { projectId: documentId })
+            `, { documentId }) // Korrektur: Sanity Query mit documentId
 
             setInvoices(result)
         } catch (err) {
@@ -63,10 +62,10 @@ export default function InvoiceList({ documentId }: InvoiceListProps) {
         } finally {
             setIsLoading(false)
         }
-    }, [client, documentId])
+    }, [documentId])
 
     useEffect(() => {
-        void fetchInvoices()
+        fetchInvoices()
     }, [fetchInvoices])
 
     if (isLoading) {

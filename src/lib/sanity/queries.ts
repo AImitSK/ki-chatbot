@@ -1,5 +1,7 @@
 // src/lib/sanity/queries.ts
-import { client } from '@/lib/sanity/client';
+import { client } from '@/lib/sanity/client'
+
+
 
 export const getUserData = async () => {
     try {
@@ -13,3 +15,20 @@ export const getUserData = async () => {
         throw new Error('Benutzerdaten konnten nicht abgerufen werden');
     }
 };
+
+export async function getCompanyData() {
+    return await client.fetch(`
+        *[_type == "unternehmen"][0] {
+            _id,
+            name,
+            strasse,
+            plz,
+            ort,
+            land,
+            ustIdNr,
+            telefon,
+            email,
+            webseite
+        }
+    `)
+}
