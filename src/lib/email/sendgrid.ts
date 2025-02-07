@@ -9,7 +9,7 @@ sgMail.setApiKey(process.env.SENDGRID_API_KEY)
 
 // Email-Templates definieren
 const TEMPLATES = {
-    EMAIL_CHANGE: 'd-976b58550a5743f99b199227dd4250d4', // Hier deine Template-ID einsetzen
+    EMAIL_CHANGE: 'd-976b58550a5743f99b199227dd4250d4',
 }
 
 interface EmailChangeTemplateData {
@@ -22,7 +22,7 @@ export async function sendChangeEmailVerification(
     token: string,
     userName: string
 ) {
-    const verificationLink = `${process.env.NEXT_PUBLIC_URL}/verify-email?token=${token}`
+    const verificationLink = `${process.env.NEXT_PUBLIC_URL}/dashboard/profil/verify-email?token=${token}`
 
     const msg = {
         to,
@@ -39,6 +39,7 @@ export async function sendChangeEmailVerification(
 
     try {
         await sgMail.send(msg)
+        console.log('Email erfolgreich gesendet an:', to)
     } catch (error) {
         console.error('SendGrid Fehler:', error)
         throw new Error('Fehler beim Senden der Email')

@@ -10,7 +10,6 @@ export async function POST(request: Request) {
         const session = await getServerSession(authOptions)
 
         if (!session?.user?.email) {
-            console.log('Keine Session gefunden')
             return NextResponse.json(
                 { message: 'Nicht authentifiziert' },
                 { status: 401 }
@@ -30,7 +29,6 @@ export async function POST(request: Request) {
             )
         }
 
-        // Original-Query mit mehr Details
         const verification = await client.fetch(
             `*[_type == "emailVerification" && token == $token && userId == $userId][0]{
                 _id,
@@ -53,6 +51,22 @@ export async function POST(request: Request) {
             )
         }
 
+        // Prüfen ob die neue Email schon von jemand anderem verwendet wird
+        const emailExists = await client.fetch(
+            `*[_type == "user" && email == $email && _id != $userId][0]._id`,
+            {
+                email: verification.newEmail,
+                userId: user
+            }
+        )
+
+        if (emailExists) {
+            return NextResponse.json(
+                { message: 'Diese E-Mail-Adresse wird bereits verwendet' },
+                { status: 400 }
+            )
+        }
+
         // Email des Benutzers aktualisieren und Token als verwendet markieren
         await writeClient
             .transaction()
@@ -69,10 +83,10 @@ export async function POST(request: Request) {
             })
             .commit()
 
-        return NextResponse.json(
-            { message: 'Email-Adresse erfolgreich geändert' },
-            { status: 200 }
-        )
+        return NextResponse.json({
+            message: 'Email-Adresse erfolgreich geändert',
+            requireRelogin: true  // Frontend weiß, dass ein Logout nötig ist
+        })
 
     } catch (error) {
         console.error('Detaillierter Fehler:', error)

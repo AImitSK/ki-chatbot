@@ -1,7 +1,7 @@
 // app/api/user/email/change/route.ts
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
-import { writeClient } from '@/lib/sanity/client'
+import { writeClient, client } from '@/lib/sanity/client'
 import { authOptions } from '@/lib/auth/config'
 import { sendChangeEmailVerification } from '@/lib/email/sendgrid'
 import { randomBytes } from 'crypto'
@@ -18,6 +18,23 @@ export async function POST(request: Request) {
         }
 
         const { newEmail } = await request.json()
+
+        // Prüfen, ob die neue Email bereits existiert
+        const existingUser = await client.fetch(
+            `*[_type == "user" && email == $email && _id != $userId][0]`,
+            {
+                email: newEmail,
+                userId: session.user.id
+            }
+        )
+
+        if (existingUser) {
+            return NextResponse.json(
+                { error: 'Diese E-Mail-Adresse wird bereits verwendet' },
+                { status: 400 }
+            )
+        }
+
         const userId = session.user.id
         const token = generateToken()
 

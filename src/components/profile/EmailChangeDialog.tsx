@@ -37,7 +37,7 @@ export function EmailChangeDialog({ currentEmail, onClose }: EmailChangeDialogPr
             const data = await response.json()
 
             if (!response.ok) {
-                throw new Error(data.message)
+                throw new Error(data.error || data.message || 'Ein Fehler ist aufgetreten')
             }
 
             showSuccessToast('Bestätigungs-E-Mail wurde gesendet. Bitte überprüfen Sie Ihren Posteingang.')
@@ -50,6 +50,7 @@ export function EmailChangeDialog({ currentEmail, onClose }: EmailChangeDialogPr
             setIsLoading(false)
         }
     }
+
 
     return (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
