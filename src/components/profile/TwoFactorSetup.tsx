@@ -6,6 +6,8 @@ import { QRCodeSVG } from 'qrcode.react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { showSuccessToast, showErrorToast } from '@/components/ui/toast'
+import { useSession } from 'next-auth/react'
+import { useRouter } from 'next/navigation'
 
 interface TwoFactorSetupProps {
     isEnabled?: boolean;
@@ -20,6 +22,13 @@ export function TwoFactorSetup({ isEnabled = false, recoveryCodesLeft = 0 }: Two
     const [verificationCode, setVerificationCode] = useState('')
     const [isLoading, setIsLoading] = useState(false)
     const [recoveryCodes, setRecoveryCodes] = useState<string[]>([])
+    const { update } = useSession()
+    const router = useRouter()
+
+    const refreshData = async () => {
+        await update()
+        router.refresh()
+    }
 
     const handleStart2FASetup = async () => {
         try {
@@ -61,8 +70,7 @@ export function TwoFactorSetup({ isEnabled = false, recoveryCodesLeft = 0 }: Two
             }
 
             showSuccessToast('2FA wurde erfolgreich aktiviert')
-            // Seite neu laden um den aktualisierten Status zu zeigen
-            window.location.reload()
+            await refreshData()
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Code konnte nicht verifiziert werden'
             showErrorToast(message)
@@ -83,7 +91,7 @@ export function TwoFactorSetup({ isEnabled = false, recoveryCodesLeft = 0 }: Two
             }
 
             showSuccessToast('2FA wurde erfolgreich deaktiviert')
-            window.location.reload()
+            await refreshData()
         } catch (error) {
             showErrorToast('Fehler bei der Deaktivierung von 2FA')
         } finally {

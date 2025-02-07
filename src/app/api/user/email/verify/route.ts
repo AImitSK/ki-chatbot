@@ -1,6 +1,6 @@
 // app/api/user/email/verify/route.ts
 import { NextResponse } from 'next/server'
-import { client } from '@/lib/sanity/client'
+import { client, writeClient } from '@/lib/sanity/client'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth/config'
 
@@ -9,7 +9,7 @@ export async function POST(request: Request) {
         const { token } = await request.json()
         const session = await getServerSession(authOptions)
 
-        if (!session?.user?.id) {
+        if (!session?.user?.email) {
             console.log('Keine Session gefunden')
             return NextResponse.json(
                 { message: 'Nicht authentifiziert' },
@@ -17,16 +17,18 @@ export async function POST(request: Request) {
             )
         }
 
-        // Debug-Logging
-        console.log('Suche Token:', token)
-        console.log('User ID:', session.user.id)
-
-        // Lassen Sie uns zuerst alle Token für diesen Benutzer finden
-        const allTokens = await client.fetch(
-            `*[_type == "emailVerification" && userId == $userId]`,
-            { userId: session.user.id }
+        // Benutzer finden
+        const user = await client.fetch(
+            `*[_type == "user" && email == $email][0]._id`,
+            { email: session.user.email }
         )
-        console.log('Gefundene Tokens:', allTokens)
+
+        if (!user) {
+            return NextResponse.json(
+                { message: 'Benutzer nicht gefunden' },
+                { status: 404 }
+            )
+        }
 
         // Original-Query mit mehr Details
         const verification = await client.fetch(
@@ -40,10 +42,9 @@ export async function POST(request: Request) {
             }`,
             {
                 token,
-                userId: session.user.id
+                userId: user
             }
         )
-        console.log('Gefundene Verifikation:', verification)
 
         if (!verification) {
             return NextResponse.json(
@@ -52,26 +53,21 @@ export async function POST(request: Request) {
             )
         }
 
-        // Transaktion für die Aktualisierungen
-        const transaction = client.transaction()
-
-        // Email des Benutzers aktualisieren
-        transaction.patch(session.user.id, {
-            set: {
-                email: verification.newEmail,
-                updatedAt: new Date().toISOString()
-            }
-        })
-
-        // Token als verwendet markieren
-        transaction.patch(verification._id, {
-            set: {
-                usedAt: new Date().toISOString()
-            }
-        })
-
-        // Transaktion ausführen
-        await transaction.commit()
+        // Email des Benutzers aktualisieren und Token als verwendet markieren
+        await writeClient
+            .transaction()
+            .patch(user, {
+                set: {
+                    email: verification.newEmail,
+                    updatedAt: new Date().toISOString()
+                }
+            })
+            .patch(verification._id, {
+                set: {
+                    usedAt: new Date().toISOString()
+                }
+            })
+            .commit()
 
         return NextResponse.json(
             { message: 'Email-Adresse erfolgreich geändert' },

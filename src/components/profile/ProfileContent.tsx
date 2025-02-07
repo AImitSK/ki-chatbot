@@ -10,18 +10,20 @@ import { SecuritySettings } from './SecuritySettings'
 import { Button } from '@/components/ui/button'
 
 interface ProfileContentProps {
-    initialUserData: User
+    initialUserData: User | null
 }
 
 export function ProfileContent({ initialUserData }: ProfileContentProps) {
-    const [userData, setUserData] = useState(initialUserData)
+    const [userData, setUserData] = useState<User | null>(initialUserData)
     const [isEditing, setIsEditing] = useState(false)
+    const [isLoading, setIsLoading] = useState(false)
 
     const handleAvatarUpdate = async (newUserData: User) => {
         setUserData(newUserData)
     }
 
     const handleProfileUpdate = async (data: Partial<User>) => {
+        setIsLoading(true)
         try {
             const response = await fetch('/api/user/profile', {
                 method: 'POST',
@@ -35,9 +37,23 @@ export function ProfileContent({ initialUserData }: ProfileContentProps) {
 
             const updatedUser = await response.json()
             setUserData(updatedUser)
+            setIsEditing(false)
         } catch (error) {
             console.error('Fehler beim Update:', error)
+        } finally {
+            setIsLoading(false)
         }
+    }
+
+    // Wenn keine Benutzerdaten vorhanden sind, zeige einen Ladezustand oder Fehlermeldung
+    if (!userData) {
+        return (
+            <div className="min-h-[400px] flex items-center justify-center">
+                <div className="text-center">
+                    <p className="text-zinc-500">Benutzerdaten konnten nicht geladen werden</p>
+                </div>
+            </div>
+        )
     }
 
     return (
@@ -60,7 +76,7 @@ export function ProfileContent({ initialUserData }: ProfileContentProps) {
                 <section className="bg-white p-6 rounded-lg shadow">
                     <div className="flex justify-between items-center mb-4">
                         <h2 className="text-lg font-medium">Persönliche Daten</h2>
-                        {!isEditing && (
+                        {!isEditing && !isLoading && (
                             <Button onClick={() => setIsEditing(true)}>
                                 Bearbeiten
                             </Button>
@@ -76,14 +92,13 @@ export function ProfileContent({ initialUserData }: ProfileContentProps) {
                             }}
                             onSave={async (data) => {
                                 await handleProfileUpdate(data)
-                                setIsEditing(false)
                             }}
                         />
                     ) : (
                         <div className="space-y-4">
                             <div>
                                 <div className="text-sm text-zinc-500">Name</div>
-                                <div>{userData.name}</div>
+                                <div>{userData.name || '-'}</div>
                             </div>
                             <div>
                                 <div className="text-sm text-zinc-500">Telefon</div>

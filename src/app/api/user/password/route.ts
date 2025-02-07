@@ -2,13 +2,13 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth/config'
-import { client } from '@/lib/sanity/client'
+import { client, writeClient } from '@/lib/sanity/client'
 import bcrypt from 'bcryptjs'
 
 export async function POST(request: Request) {
     try {
         const session = await getServerSession(authOptions)
-        if (!session?.user?.id) {
+        if (!session?.user?.email) {
             return NextResponse.json(
                 { message: 'Nicht authentifiziert' },
                 { status: 401 }
@@ -19,9 +19,20 @@ export async function POST(request: Request) {
 
         // Benutzer aus Sanity holen
         const user = await client.fetch(
-            `*[_type == "user" && _id == $id][0]`,
-            { id: session.user.id }
+            `*[_type == "user" && email == $email][0]{
+                _id,
+                password
+            }`,
+            { email: session.user.email }
         )
+
+        if (!user) {
+            console.error('Benutzer nicht gefunden für Email:', session.user.email)
+            return NextResponse.json(
+                { message: 'Benutzer nicht gefunden' },
+                { status: 404 }
+            )
+        }
 
         // Aktuelles Passwort überprüfen
         const isValid = await bcrypt.compare(currentPassword, user.password)
@@ -34,8 +45,8 @@ export async function POST(request: Request) {
 
         // Neues Passwort hashen und speichern
         const hashedPassword = await bcrypt.hash(newPassword, 12)
-        await client
-            .patch(session.user.id)
+        await writeClient
+            .patch(user._id)
             .set({
                 password: hashedPassword,
                 updatedAt: new Date().toISOString()

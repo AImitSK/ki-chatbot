@@ -21,7 +21,6 @@ import {
   SidebarSpacer,
 } from '@/components/ui/sidebar'
 import { SidebarLayout } from '@/components/ui/sidebar-layout'
-import { getEvents } from '@/app/data'
 import {
   ArrowRightStartOnRectangleIcon,
   ChevronDownIcon,
@@ -36,20 +35,21 @@ import {
   Square2StackIcon,
   TicketIcon,
 } from '@heroicons/react/20/solid'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { useSession, signOut } from 'next-auth/react'
 import { urlFor } from '@/lib/sanity/image'
-
+import { memo, useCallback } from 'react'
 
 function getUserAvatar(session: any) {
-  if (session?.user?.avatar?.asset?._ref) {
-    return urlFor(session.user.avatar).width(80).height(80).url()
-  }
-  return '/icon/avatar.svg'
+  if (!session?.user?.avatar?.asset?._ref) return '/icon/avatar.svg'
+  const url = urlFor(session.user.avatar).width(80).height(80).url()
+  return url
 }
 
-
-function AccountDropdownMenu({ anchor }: { anchor: 'top start' | 'bottom end' }) {
+function AccountDropdownMenu({ anchor, onSignOut }: {
+  anchor: 'top start' | 'bottom end',
+  onSignOut: () => void
+}) {
   return (
       <DropdownMenu className="min-w-64" anchor={anchor}>
         <DropdownItem href="/dashboard/profil">
@@ -66,7 +66,7 @@ function AccountDropdownMenu({ anchor }: { anchor: 'top start' | 'bottom end' })
           <DropdownLabel>Feedback</DropdownLabel>
         </DropdownItem>
         <DropdownDivider />
-        <DropdownItem onClick={() => signOut({ callbackUrl: '/auth/login' })}>
+        <DropdownItem onClick={onSignOut}>
           <ArrowRightStartOnRectangleIcon />
           <DropdownLabel>Abmelden</DropdownLabel>
         </DropdownItem>
@@ -74,16 +74,24 @@ function AccountDropdownMenu({ anchor }: { anchor: 'top start' | 'bottom end' })
   )
 }
 
-export function ApplicationLayout({
-                                    events,
-                                    children,
-                                  }: {
-  events: Awaited<ReturnType<typeof getEvents>>
+interface ApplicationLayoutProps {
   children: React.ReactNode
-}) {
-  let pathname = usePathname()
-  const { data: session } = useSession()
+}
+
+export const ApplicationLayout = memo(function ApplicationLayout({ children }: ApplicationLayoutProps) {
+  const pathname = usePathname()
+  const router = useRouter()
+  const { data: session, update } = useSession()
   const avatarUrl = getUserAvatar(session)
+
+  const refreshSession = useCallback(async () => {
+    await update()
+    router.refresh()
+  }, [update, router])
+
+  const handleSignOut = async () => {
+    await signOut({ callbackUrl: '/auth/login' })
+  }
 
   return (
       <SidebarLayout
@@ -93,9 +101,13 @@ export function ApplicationLayout({
               <NavbarSection>
                 <Dropdown>
                   <DropdownButton as={NavbarItem}>
-                    <Avatar src={avatarUrl} square />
+                    <Avatar
+                        src={avatarUrl}
+                        square
+                        initials={session?.user?.name?.charAt(0).toUpperCase() || '?'}
+                    />
                   </DropdownButton>
-                  <AccountDropdownMenu anchor="bottom end" />
+                  <AccountDropdownMenu anchor="bottom end" onSignOut={handleSignOut} />
                 </Dropdown>
               </NavbarSection>
             </Navbar>
@@ -156,28 +168,27 @@ export function ApplicationLayout({
               <SidebarFooter className="max-lg:hidden">
                 <Dropdown>
                   <DropdownButton as={SidebarItem}>
-      <span className="flex min-w-0 items-center gap-3">
-        <Avatar
-            src={session?.user?.avatar?.asset?._ref
-                ? `https://${process.env.NEXT_PUBLIC_SANITY_PROJECT_ID}.api.sanity.io/v2024-01-29/images/${process.env.NEXT_PUBLIC_SANITY_DATASET}/${session.user.avatar.asset._ref}`
-                : '/icon/avatar.svg'}
-            initials={session?.user?.name?.charAt(0).toUpperCase() || '?'}
-            className="size-10 bg-zinc-200 dark:bg-zinc-800"
-            square
-            alt={session?.user?.name || 'User Avatar'}
-        />
-        <span className="min-w-0">
-          <span className="block truncate text-sm/5 font-medium text-zinc-950 dark:text-white">
-            {session?.user?.name || 'Nicht angemeldet'}
-          </span>
-          <span className="block truncate text-xs/5 font-normal text-zinc-500 dark:text-zinc-400">
-            {session?.user?.email}
-          </span>
-        </span>
-      </span>
+                <span className="flex min-w-0 items-center gap-3">
+                  <Avatar
+                      src={avatarUrl}
+                      initials={session?.user?.name?.charAt(0).toUpperCase() || '?'}
+                      className="size-10 bg-zinc-200 dark:bg-zinc-800"
+                      square
+                      alt={session?.user?.name || 'User Avatar'}
+                      key={Date.now()}
+                  />
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm/5 font-medium text-zinc-950 dark:text-white">
+                      {session?.user?.name || 'Nicht angemeldet'}
+                    </span>
+                    <span className="block truncate text-xs/5 font-normal text-zinc-500 dark:text-zinc-400">
+                      {session?.user?.email}
+                    </span>
+                  </span>
+                </span>
                     <ChevronUpIcon />
                   </DropdownButton>
-                  <AccountDropdownMenu anchor="top start" />
+                  <AccountDropdownMenu anchor="top start" onSignOut={handleSignOut} />
                 </Dropdown>
               </SidebarFooter>
             </Sidebar>
@@ -186,4 +197,4 @@ export function ApplicationLayout({
         {children}
       </SidebarLayout>
   )
-}
+})

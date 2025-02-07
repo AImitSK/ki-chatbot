@@ -4,8 +4,9 @@
 import { User } from '@/types'
 import { Avatar } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
-import { useState, useRef } from 'react'
 import { urlFor } from '@/lib/sanity/image'
+import { useUpdate } from '@/hooks/useUpdate'
+import { useState, useRef } from 'react'
 
 interface AvatarUploadProps {
     userData: User
@@ -15,6 +16,7 @@ interface AvatarUploadProps {
 export function AvatarUpload({ userData, onAvatarUpdate }: AvatarUploadProps) {
     const [isUploading, setIsUploading] = useState(false)
     const fileInputRef = useRef<HTMLInputElement>(null)
+    const { refresh } = useUpdate()
 
     async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
         const file = e.target.files?.[0]
@@ -35,6 +37,7 @@ export function AvatarUpload({ userData, onAvatarUpdate }: AvatarUploadProps) {
 
             const updatedUser = await response.json()
             onAvatarUpdate(updatedUser)
+            await refresh()
         } catch (error) {
             console.error('Avatar upload error:', error)
         } finally {

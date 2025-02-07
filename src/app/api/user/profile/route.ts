@@ -2,14 +2,14 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth/config'
-import { client } from '@/lib/sanity/client'
+import { client, writeClient } from '@/lib/sanity/client'
 
-// GET-Handler hinzufügen
+// GET-Handler
 export async function GET() {
     try {
         const session = await getServerSession(authOptions)
 
-        if (!session?.user?.id) {
+        if (!session?.user?.email) {
             return NextResponse.json(
                 { error: 'Nicht authentifiziert' },
                 { status: 401 }
@@ -17,8 +17,8 @@ export async function GET() {
         }
 
         const user = await client.fetch(
-            `*[_type == "user" && _id == $id][0]`,
-            { id: session.user.id }
+            `*[_type == "user" && email == $email][0]`,
+            { email: session.user.email }
         )
 
         if (!user) {
@@ -39,22 +39,39 @@ export async function GET() {
     }
 }
 
-// Bestehende POST-Methode beibehalten
+// POST-Methode
 export async function POST(request: Request) {
     try {
         const session = await getServerSession(authOptions)
 
-        if (!session?.user?.id) {
+        if (!session?.user?.email) {
             return NextResponse.json(
                 { error: 'Nicht authentifiziert' },
                 { status: 401 }
             )
         }
 
-        const data = await request.json()
+        // Erst den Benutzer finden
+        const user = await client.fetch(
+            `*[_type == "user" && email == $email][0]._id`,
+            { email: session.user.email }
+        )
 
-        const updatedUser = await client
-            .patch(session.user.id)
+        if (!user) {
+            console.error('Benutzer nicht gefunden für Email:', session.user.email)
+            return NextResponse.json(
+                { error: 'Benutzer nicht gefunden' },
+                { status: 404 }
+            )
+        }
+
+        const data = await request.json()
+        console.log('Update-Daten:', data)
+        console.log('User ID:', user)
+
+        // Dann mit der korrekten ID updaten
+        const updatedUser = await writeClient
+            .patch(user)
             .set({
                 name: data.name,
                 telefon: data.telefon,

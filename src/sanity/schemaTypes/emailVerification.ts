@@ -1,62 +1,46 @@
 // src/sanity/schemaTypes/emailVerification.ts
-import { Rule } from '@sanity/types'
+import { defineType, defineField } from 'sanity'
 
-interface PreviewProps {
-    email: string
-    created: string
-}
-
-export const emailVerificationSchema = {
+export const emailVerificationSchema = defineType({
     name: 'emailVerification',
     title: 'Email Verifications',
     type: 'document',
+    liveEdit: true,
     fields: [
-        {
+        defineField({
             name: 'token',
             title: 'Token',
             type: 'string',
-            validation: (Rule: Rule) => Rule.required()
-        },
-        {
+            validation: Rule => Rule.required()
+        }),
+        defineField({
             name: 'userId',
             title: 'User ID',
             type: 'string',
-            validation: (Rule: Rule) => Rule.required()
-        },
-        {
+            validation: Rule => Rule.required()
+        }),
+        defineField({
             name: 'newEmail',
             title: 'New Email',
             type: 'string',
-            validation: (Rule: Rule) => Rule.required().email()
-        },
-        {
+            validation: Rule => Rule.required().email()
+        }),
+        defineField({
             name: 'expiresAt',
             title: 'Expires At',
             type: 'datetime',
-            validation: (Rule: Rule) => Rule.required()
-        },
-        {
+            validation: Rule => Rule.required()
+        }),
+        defineField({
             name: 'createdAt',
             title: 'Created At',
             type: 'datetime',
-            validation: (Rule: Rule) => Rule.required()
-        },
-        {
+            validation: Rule => Rule.required()
+        }),
+        defineField({
             name: 'usedAt',
             title: 'Used At',
             type: 'datetime'
-        }
-    ],
-    preview: {
-        select: {
-            email: 'newEmail',
-            created: 'createdAt'
-        },
-        prepare({ email, created }: PreviewProps) {
-            return {
-                title: email,
-                subtitle: new Date(created).toLocaleString()
-            }
-        }
-    }
-}
+        })
+    ]
+})

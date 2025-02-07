@@ -96,7 +96,11 @@ export const authOptions: AuthOptions = {
         })
     ],
     callbacks: {
-        async jwt({ token, user }) {
+        async jwt({ token, user, trigger, session }) {
+            if (trigger === "update" && session) {
+                // Token mit aktualisierten Session-Daten aktualisieren
+                return { ...token, ...session.user }
+            }
             if (user) {
                 return {
                     ...token,
@@ -124,6 +128,16 @@ export const authOptions: AuthOptions = {
             }
             return session
         }
+    },
+    events: {
+        async updateUser(message) {
+            console.log('User updated:', message)
+        }
+    },
+    session: {
+        strategy: "jwt",
+        maxAge: 30 * 24 * 60 * 60, // 30 Tage
+        updateAge: 24 * 60 * 60     // 24 Stunden
     },
     pages: {
         signIn: '/auth/login',

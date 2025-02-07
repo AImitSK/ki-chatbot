@@ -2,13 +2,13 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth/config'
-import { client } from '@/lib/sanity/client'
+import { client, writeClient } from '@/lib/sanity/client'
 import { authenticator } from 'otplib'
 
 export async function POST(request: Request) {
     try {
         const session = await getServerSession(authOptions)
-        if (!session?.user?.id) {
+        if (!session?.user?.email) {
             return NextResponse.json(
                 { message: 'Nicht authentifiziert' },
                 { status: 401 }
@@ -19,9 +19,20 @@ export async function POST(request: Request) {
 
         // Hole das temporäre Secret
         const user = await client.fetch(
-            `*[_type == "user" && _id == $id][0]`,
-            { id: session.user.id }
+            `*[_type == "user" && email == $email][0]{
+                _id,
+                tempTwoFactorSecret,
+                twoFactorSetupPending
+            }`,
+            { email: session.user.email }
         )
+
+        if (!user) {
+            return NextResponse.json(
+                { message: 'Benutzer nicht gefunden' },
+                { status: 404 }
+            )
+        }
 
         if (!user.tempTwoFactorSecret || !user.twoFactorSetupPending) {
             return NextResponse.json(
@@ -44,7 +55,7 @@ export async function POST(request: Request) {
         }
 
         // Aktiviere 2FA für den Benutzer
-        await client
+        await writeClient
             .patch(user._id)
             .set({
                 twoFactorEnabled: true,
