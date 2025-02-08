@@ -21,22 +21,21 @@ export default function Verify2FAPage() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
 
-        if (code.length !== 6) {
-            showErrorToast('Bitte geben Sie einen 6-stelligen Code ein')
+        if (code.length !== 6 && code.length !== 8) {
+            showErrorToast('Bitte geben Sie einen gültigen Code ein')
             return
         }
 
         try {
             setIsLoading(true)
 
-            // 2FA-Code verifizieren
+            // 2FA-Code oder Recovery Code verifizieren
             const verifyResponse = await fetch('/api/auth/verify-2fa', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     email,
-                    code,
-                    rememberDevice
+                    code
                 })
             })
 
@@ -48,11 +47,12 @@ export default function Verify2FAPage() {
 
             // Nach erfolgreicher Verifizierung einloggen
             const signInResult = await signIn('credentials', {
+                redirect: false,
                 email,
                 twoFactorVerified: 'true',
-                rememberDevice: rememberDevice ? 'true' : 'false',
-                redirect: false,
-                callbackUrl
+                callbackUrl,
+                // Setze die Session-Dauer direkt hier
+                maxAge: rememberDevice ? 30 * 24 * 60 * 60 : undefined // 30 Tage oder Standard
             })
 
             if (signInResult?.error) {
@@ -71,13 +71,14 @@ export default function Verify2FAPage() {
         }
     }
 
+    // Rest der Komponente bleibt gleich
     return (
         <div className="min-h-screen flex items-center justify-center bg-zinc-50 px-4">
             <div className="w-full max-w-md space-y-8 bg-white p-8 rounded-lg shadow-sm">
                 <div className="text-center">
                     <Heading>Zwei-Faktor-Authentifizierung</Heading>
                     <p className="mt-2 text-zinc-600">
-                        Bitte geben Sie den Code aus Ihrer Authenticator-App ein.
+                        Bitte geben Sie den Code aus Ihrer Authenticator-App oder einen Recovery Code ein.
                     </p>
                 </div>
 
@@ -85,15 +86,14 @@ export default function Verify2FAPage() {
                     <div>
                         <Input
                             type="text"
-                            inputMode="numeric"
                             value={code}
                             onChange={(e) => {
-                                const value = e.target.value.replace(/[^0-9]/g, '')
-                                if (value.length <= 6) {
+                                const value = e.target.value.toUpperCase()
+                                if (value.length <= 8) {
                                     setCode(value)
                                 }
                             }}
-                            placeholder="000000"
+                            placeholder="Code eingeben"
                             className="text-center tracking-wider text-xl"
                             disabled={isLoading}
                         />
@@ -116,7 +116,7 @@ export default function Verify2FAPage() {
                         type="submit"
                         color="dark/zinc"
                         className="w-full"
-                        disabled={code.length !== 6 || isLoading}
+                        disabled={(code.length !== 6 && code.length !== 8) || isLoading}
                     >
                         {isLoading ? 'Wird verifiziert...' : 'Bestätigen'}
                     </Button>

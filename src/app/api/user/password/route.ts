@@ -1,46 +1,39 @@
-// app/api/user/password/route.ts
+// src/app/api/user/password/route.ts
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth/config'
-import { client, writeClient } from '@/lib/sanity/client'
+import { writeClient } from '@/lib/sanity/client'
 import bcrypt from 'bcryptjs'
+import { logActivity } from '@/lib/security/activityLogger'
 
-export async function POST(request: Request) {
+export async function POST(req: Request) {
     try {
         const session = await getServerSession(authOptions)
-        if (!session?.user?.email) {
-            return NextResponse.json(
-                { message: 'Nicht authentifiziert' },
-                { status: 401 }
-            )
+        if (!session?.user?.id) {
+            return new NextResponse('Unauthorized', { status: 401 })
         }
 
-        const { currentPassword, newPassword } = await request.json()
+        const { currentPassword, newPassword } = await req.json()
 
-        // Benutzer aus Sanity holen
-        const user = await client.fetch(
-            `*[_type == "user" && email == $email][0]{
+        // Hole aktuellen Benutzer
+        const user = await writeClient.fetch(
+            `*[_type == "user" && _id == $userId][0]{
                 _id,
                 password
             }`,
-            { email: session.user.email }
+            { userId: session.user.id }
         )
 
-        if (!user) {
-            console.error('Benutzer nicht gefunden für Email:', session.user.email)
-            return NextResponse.json(
-                { message: 'Benutzer nicht gefunden' },
-                { status: 404 }
-            )
-        }
-
-        // Aktuelles Passwort überprüfen
+        // Überprüfe aktuelles Passwort
         const isValid = await bcrypt.compare(currentPassword, user.password)
         if (!isValid) {
-            return NextResponse.json(
-                { message: 'Aktuelles Passwort ist nicht korrekt' },
-                { status: 400 }
-            )
+            // Fehlgeschlagener Versuch loggen
+            await logActivity({
+                userId: session.user.id,
+                activityType: 'password_change_failed',
+                details: 'Aktuelles Passwort falsch'
+            })
+            return new NextResponse('Aktuelles Passwort ist falsch', { status: 400 })
         }
 
         // Neues Passwort hashen und speichern
@@ -53,16 +46,16 @@ export async function POST(request: Request) {
             })
             .commit()
 
-        return NextResponse.json(
-            { message: 'Passwort erfolgreich geändert' },
-            { status: 200 }
-        )
+        // Erfolgreiche Änderung loggen
+        await logActivity({
+            userId: session.user.id,
+            activityType: 'password_change',
+            details: 'Passwort erfolgreich geändert'
+        })
 
+        return NextResponse.json({ success: true })
     } catch (error) {
-        console.error('Fehler bei Passwortänderung:', error)
-        return NextResponse.json(
-            { message: 'Fehler bei der Passwortänderung' },
-            { status: 500 }
-        )
+        console.error('Error changing password:', error)
+        return new NextResponse('Internal Server Error', { status: 500 })
     }
 }

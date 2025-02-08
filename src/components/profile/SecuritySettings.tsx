@@ -5,9 +5,10 @@ import { useState } from 'react'
 import { User } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { validatePassword } from '@/lib/validation/password' // Neuer Import
+import { validatePassword } from '@/lib/validation/password'
 import { showSuccessToast, showErrorToast } from '@/components/ui/toast'
 import { TwoFactorSetup } from './TwoFactorSetup'
+import { ActivityLog } from './ActivityLog'
 
 interface SecuritySettingsProps {
     user: User
@@ -28,7 +29,7 @@ export const SecuritySettings = ({ user }: SecuritySettingsProps) => {
         // Validiere das neue Passwort
         const validation = validatePassword(newPassword)
         if (!validation.isValid) {
-            setError(validation.message)  // Jetzt ist message immer definiert
+            setError(validation.message)
             return
         }
 
@@ -157,9 +158,7 @@ export const SecuritySettings = ({ user }: SecuritySettingsProps) => {
                     <p className="text-sm text-zinc-600 mb-2">
                         Überprüfen Sie die letzten Aktivitäten Ihres Kontos.
                     </p>
-                    <Button color="dark/zinc">
-                        Aktivitäten anzeigen
-                    </Button>
+                    <ActivityLog />
                 </div>
             </div>
         </div>

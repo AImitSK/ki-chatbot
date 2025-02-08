@@ -187,7 +187,14 @@ export const userSchema = defineType({
             title: 'Two Factor Setup Pending',
             type: 'boolean',
             initialValue: false
-        })
+        }),
+        defineField({
+            name: 'recoveryCodes',
+            title: 'Recovery Codes',
+            type: 'array',
+            of: [{ type: 'string' }],
+            hidden: true
+        }),
     ],
     preview: {
         select: {

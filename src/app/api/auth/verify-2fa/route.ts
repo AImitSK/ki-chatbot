@@ -1,11 +1,19 @@
 // app/api/auth/verify-2fa/route.ts
 import { NextResponse } from 'next/server'
-import { client } from '@/lib/sanity/client'
+import { client, writeClient } from '@/lib/sanity/client'
 import { authenticator } from 'otplib'
+
+interface User {
+    _id: string
+    email: string
+    twoFactorSecret: string | null
+    twoFactorEnabled: boolean
+    recoveryCodes?: string[]
+}
 
 export async function POST(request: Request) {
     try {
-        const { email, code } = await request.json()
+        const { email, code, rememberDevice } = await request.json()
 
         if (!email || !code) {
             return NextResponse.json(
@@ -14,18 +22,47 @@ export async function POST(request: Request) {
             )
         }
 
+        const upperCode = code.toUpperCase()
+
         // Benutzer und 2FA-Secret aus Sanity holen
-        const user = await client.fetch(
+        const user = await client.fetch<User>(
             `*[_type == "user" && email == $email][0]{
                 _id,
                 email,
                 twoFactorSecret,
-                twoFactorEnabled
+                twoFactorEnabled,
+                recoveryCodes
             }`,
             { email }
         )
 
-        if (!user || !user.twoFactorEnabled || !user.twoFactorSecret) {
+        if (!user || !user.twoFactorEnabled) {
+            return NextResponse.json(
+                { message: 'Ungültige Anfrage' },
+                { status: 400 }
+            )
+        }
+
+        // Prüfen ob es ein Recovery Code ist
+        if (user.recoveryCodes?.includes(upperCode)) {
+            // Recovery Code entfernen nach Benutzung
+            await writeClient
+                .patch(user._id)
+                .set({
+                    recoveryCodes: user.recoveryCodes.filter((rc: string) => rc !== upperCode),
+                    updatedAt: new Date().toISOString()
+                })
+                .commit()
+
+            return NextResponse.json({
+                success: true,
+                verified: true,
+                email: user.email
+            })
+        }
+
+        // Falls kein Recovery Code, dann normaler 2FA Check
+        if (!user.twoFactorSecret) {
             return NextResponse.json(
                 { message: 'Ungültige Anfrage' },
                 { status: 400 }
@@ -34,7 +71,7 @@ export async function POST(request: Request) {
 
         // Code verifizieren
         const isValid = authenticator.verify({
-            token: code,
+            token: upperCode,
             secret: user.twoFactorSecret
         })
 
@@ -45,11 +82,11 @@ export async function POST(request: Request) {
             )
         }
 
-        // Ein temporäres Token erstellen, das die erfolgreiche 2FA-Verifizierung bestätigt
         return NextResponse.json({
             success: true,
             verified: true,
-            email: user.email
+            email: user.email,
+            rememberDevice: !!rememberDevice  // Füge rememberDevice hinzu
         })
 
     } catch (error) {
