@@ -1,47 +1,53 @@
 // src/app/dashboard/unternehmen/page.tsx
-'use client'
-
-import { useEffect, useState } from 'react'
 import { Heading } from '@/components/ui/heading'
 import { CompanyContent } from '@/components/company/CompanyContent'
-import { client } from '@/lib/sanity/client'
+import { writeClient } from '@/lib/sanity/client'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth/config'
+import { redirect } from 'next/navigation'
 
-export default function UnternehmenPage() {
-    const [companyData, setCompanyData] = useState(null)
-    const [loading, setLoading] = useState(true)
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
 
-    useEffect(() => {
-        async function fetchCompanyData() {
-            try {
-                const data = await client.fetch(`
-                    *[_type == "unternehmen"][0] {
-                        _id,
-                        name,
-                        strasse,
-                        plz,
-                        ort,
-                        land,
-                        ustIdNr,
-                        telefon,
-                        email,
-                        webseite
-                    }
-                `)
-                setCompanyData(data)
-            } catch (error) {
-                console.error('Fehler beim Laden der Unternehmensdaten:', error)
-            } finally {
-                setLoading(false)
-            }
+export default async function UnternehmenPage() {
+    const session = await getServerSession(authOptions)
+
+    if (!session?.user?.id) {
+        redirect('/auth/login')
+    }
+
+    try {
+        // Admin sieht alle Unternehmen, normale User nur ihre eigenen
+        const query = session.user.role === 'admin'
+            ? `*[_type == "unternehmen"][0]`
+            : `*[_type == "unternehmen" && _id in *[_type == "projekte" && $userId in users[]._ref].unternehmen._ref][0]`
+
+        const companyData = await writeClient.fetch(query, {
+            userId: session.user.id
+        })
+
+        if (!companyData) {
+            return (
+                <div className="space-y-8">
+                    <Heading>Unternehmen</Heading>
+                    <p className="text-zinc-500">Keine Unternehmensdaten gefunden</p>
+                </div>
+            )
         }
-        fetchCompanyData()
-    }, [])
 
-    return (
-        <div className="space-y-8">
-            <Heading>Unternehmen</Heading>
-
-            {loading ? <p>Lädt...</p> : companyData ? <CompanyContent initialData={companyData} /> : <p>Keine Daten gefunden</p>}
-        </div>
-    )
+        return (
+            <div className="space-y-8">
+                <Heading>Unternehmen</Heading>
+                <CompanyContent initialData={companyData} />
+            </div>
+        )
+    } catch (error) {
+        console.error('Fehler beim Laden der Unternehmensdaten:', error)
+        return (
+            <div className="space-y-8">
+                <Heading>Unternehmen</Heading>
+                <p className="text-red-500">Fehler beim Laden der Daten</p>
+            </div>
+        )
+    }
 }

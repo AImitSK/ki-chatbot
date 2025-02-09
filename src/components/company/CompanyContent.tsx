@@ -5,6 +5,7 @@ import { useState } from 'react'
 import { CompanyForm } from '@/components/forms/CompanyForm'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/Card'
+import { InvoiceList } from './InvoiceList'
 
 interface CompanyData {
     _id: string
@@ -38,72 +39,80 @@ export function CompanyContent({ initialData }: CompanyContentProps) {
             if (!response.ok) throw new Error('Speichern fehlgeschlagen')
 
             const updatedCompany = await response.json()
-            setCompanyData(updatedCompany) // Aktualisierte Daten setzen
+            setCompanyData(updatedCompany)
         } catch (error) {
             console.error('Fehler beim Speichern:', error)
         }
     }
 
     return (
-        <Card className="p-6 space-y-6">
-            {/* Header mit Titel und Button */}
-            <div className="flex justify-between items-center">
-                <div className="text-lg font-medium">Unternehmensdaten</div>
-                {!isEditing && (
-                    <Button onClick={() => setIsEditing(true)}>
-                        Bearbeiten
-                    </Button>
-                )}
-            </div>
-
-            {/* Inhalt: Vorschau oder Formular */}
-            {!isEditing ? (
-                <div className="space-y-4">
-                    <div>
-                        <div className="text-sm text-zinc-500">Unternehmensname</div>
-                        <div>{companyData.name || 'Keine Daten verfügbar'}</div>
-                    </div>
-                    <div>
-                        <div className="text-sm text-zinc-500">Adresse</div>
-                        <div>
-                            {companyData.strasse || '-'}, {companyData.plz || '-'} {companyData.ort || '-'}, {companyData.land || '-'}
-                        </div>
-                    </div>
-                    {companyData.ustIdNr && (
-                        <div>
-                            <div className="text-sm text-zinc-500">USt-IDNr.</div>
-                            <div>{companyData.ustIdNr}</div>
-                        </div>
-                    )}
-                    {companyData.telefon && (
-                        <div>
-                            <div className="text-sm text-zinc-500">Telefon</div>
-                            <div>{companyData.telefon}</div>
-                        </div>
-                    )}
-                    {companyData.email && (
-                        <div>
-                            <div className="text-sm text-zinc-500">E-Mail</div>
-                            <div>{companyData.email}</div>
-                        </div>
-                    )}
-                    {companyData.webseite && (
-                        <div>
-                            <div className="text-sm text-zinc-500">Webseite</div>
-                            <div>{companyData.webseite}</div>
-                        </div>
+        <div className="space-y-8">
+            <Card className="p-6 space-y-6">
+                {/* Header mit Titel und Button */}
+                <div className="flex justify-between items-center">
+                    <div className="text-lg font-medium">Unternehmensdaten</div>
+                    {!isEditing && (
+                        <Button onClick={() => setIsEditing(true)}>
+                            Bearbeiten
+                        </Button>
                     )}
                 </div>
-            ) : (
-                <CompanyForm
-                    initialData={companyData}
-                    onCancel={() => setIsEditing(false)}
-                    onSave={async (data) => {
-                        await handleCompanyUpdate(data)
-                        setIsEditing(false)
-                    }}
-                />
-            )}
-        </Card>
+
+                {/* Inhalt: Vorschau oder Formular */}
+                {!isEditing ? (
+                    <div className="space-y-4">
+                        <div>
+                            <div className="text-sm text-zinc-500">Unternehmensname</div>
+                            <div>{companyData.name || 'Keine Daten verfügbar'}</div>
+                        </div>
+                        <div>
+                            <div className="text-sm text-zinc-500">Adresse</div>
+                            <div>
+                                {companyData.strasse || '-'}, {companyData.plz || '-'} {companyData.ort || '-'}, {companyData.land || '-'}
+                            </div>
+                        </div>
+                        {companyData.ustIdNr && (
+                            <div>
+                                <div className="text-sm text-zinc-500">USt-IDNr.</div>
+                                <div>{companyData.ustIdNr}</div>
+                            </div>
+                        )}
+                        {companyData.telefon && (
+                            <div>
+                                <div className="text-sm text-zinc-500">Telefon</div>
+                                <div>{companyData.telefon}</div>
+                            </div>
+                        )}
+                        {companyData.email && (
+                            <div>
+                                <div className="text-sm text-zinc-500">E-Mail</div>
+                                <div>{companyData.email}</div>
+                            </div>
+                        )}
+                        {companyData.webseite && (
+                            <div>
+                                <div className="text-sm text-zinc-500">Webseite</div>
+                                <div>{companyData.webseite}</div>
+                            </div>
+                        )}
+                    </div>
+                ) : (
+                    <CompanyForm
+                        initialData={companyData}
+                        onCancel={() => setIsEditing(false)}
+                        onSave={async (data) => {
+                            await handleCompanyUpdate(data)
+                            setIsEditing(false)
+                        }}
+                    />
+                )}
+            </Card>
+
+            {/* Rechnungen */}
+            <Card className="p-6">
+                <div className="text-lg font-medium mb-4">Rechnungen</div>
+                <InvoiceList />
+            </Card>
+        </div>
     )
 }
