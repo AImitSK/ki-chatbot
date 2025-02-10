@@ -19,8 +19,52 @@ export default async function UnternehmenPage() {
     try {
         // Admin sieht alle Unternehmen, normale User nur ihre eigenen
         const query = session.user.role === 'admin'
-            ? `*[_type == "unternehmen"][0]`
-            : `*[_type == "unternehmen" && _id in *[_type == "projekte" && $userId in users[]._ref].unternehmen._ref][0]`
+            ? `*[_type == "projekte"][0]{
+                unternehmen->{
+                    _id,
+                    name,
+                    strasse,
+                    plz,
+                    ort,
+                    land,
+                    ustIdNr,
+                    telefon,
+                    email,
+                    webseite
+                },
+                rechnungsempfaenger->{
+                    _id,
+                    name,
+                    email,
+                    telefon,
+                    position,
+                    role,
+                    aktiv
+                }
+            }.unternehmen`
+            : `*[_type == "projekte" && $userId in users[]._ref][0]{
+                unternehmen->{
+                    _id,
+                    name,
+                    strasse,
+                    plz,
+                    ort,
+                    land,
+                    ustIdNr,
+                    telefon,
+                    email,
+                    webseite
+                },
+                rechnungsempfaenger->{
+                    _id,
+                    name,
+                    email,
+                    telefon,
+                    position,
+                    role,
+                    aktiv
+                }
+            }.unternehmen`
 
         const companyData = await writeClient.fetch(query, {
             userId: session.user.id
@@ -35,10 +79,31 @@ export default async function UnternehmenPage() {
             )
         }
 
+        // Hole den Rechnungsempfänger für dieses Unternehmen
+        const recipientQuery = `*[_type == "projekte" && unternehmen._ref == $companyId][0].rechnungsempfaenger->{
+            _id,
+            name,
+            email,
+            telefon,
+            position,
+            role,
+            aktiv
+        }`
+
+        const rechnungsempfaenger = await writeClient.fetch(recipientQuery, {
+            companyId: companyData._id
+        })
+
+        // Füge den Rechnungsempfänger zu den Unternehmensdaten hinzu
+        const companyWithRecipient = {
+            ...companyData,
+            rechnungsempfaenger
+        }
+
         return (
             <div className="space-y-8">
                 <Heading>Unternehmen</Heading>
-                <CompanyContent initialData={companyData} />
+                <CompanyContent initialData={companyWithRecipient} />
             </div>
         )
     } catch (error) {

@@ -6,23 +6,26 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/Label'
 
+interface FormData {
+    name: string
+    email: string
+    telefon: string
+    position: string
+}
+
 interface BillingRecipientFormProps {
-    onSubmit: (data: {
-        name: string
-        email: string
-        telefon?: string
-        position?: string
-    }) => Promise<void>
+    initialData?: FormData
+    onSubmit: (data: FormData) => Promise<void>
     onCancel: () => void
 }
 
-export function BillingRecipientForm({ onSubmit, onCancel }: BillingRecipientFormProps) {
+export function BillingRecipientForm({ initialData, onSubmit, onCancel }: BillingRecipientFormProps) {
     const [isLoading, setIsLoading] = useState(false)
-    const [formData, setFormData] = useState({
-        name: '',
-        email: '',
-        telefon: '',
-        position: ''
+    const [formData, setFormData] = useState<FormData>({
+        name: initialData?.name || '',
+        email: initialData?.email || '',
+        telefon: initialData?.telefon || '',
+        position: initialData?.position || ''
     })
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -32,7 +35,7 @@ export function BillingRecipientForm({ onSubmit, onCancel }: BillingRecipientFor
         try {
             await onSubmit(formData)
         } catch (error) {
-            console.error('Fehler beim Anlegen des Rechnungsempfängers:', error)
+            console.error('Fehler beim Speichern des Rechnungsempfängers:', error)
         } finally {
             setIsLoading(false)
         }
@@ -84,6 +87,7 @@ export function BillingRecipientForm({ onSubmit, onCancel }: BillingRecipientFor
                 <Button
                     type="submit"
                     disabled={isLoading}
+                    className="text-white"
                 >
                     {isLoading ? 'Wird gespeichert...' : 'Speichern'}
                 </Button>
@@ -91,7 +95,7 @@ export function BillingRecipientForm({ onSubmit, onCancel }: BillingRecipientFor
                     type="button"
                     onClick={onCancel}
                     disabled={isLoading}
-                    className="bg-white hover:bg-zinc-50 text-zinc-900 border border-zinc-200"
+                    className="text-white"
                 >
                     Abbrechen
                 </Button>

@@ -42,9 +42,39 @@ export const projektSchema = defineType({
             type: 'reference',
             to: [{ type: 'user' }],
             options: {
-                filter: 'role == "billing" && aktiv == true'
+                filter: 'role == "billing" || role == "admin"'
             },
-            validation: Rule => Rule.required()
+            validation: Rule => Rule.custom(async (value, context) => {
+                const client = context.getClient({apiVersion: '2024-01-29'})
+
+                if (!value?._ref) {
+                    const adminUser = await client.fetch(`
+               *[_type == "user" && role == "admin"][0]._id
+           `)
+
+                    if (!adminUser) {
+                        return 'Es muss mindestens ein Admin existieren'
+                    }
+
+                    if (context.document) {
+                        await client.patch(context.document._id).set({
+                            rechnungsempfaenger: {
+                                _type: 'reference',
+                                _ref: adminUser
+                            }
+                        }).commit()
+                    }
+                    return true
+                }
+
+                const selectedUser = await client.fetch(`
+           *[_type == "user" && _id == $userId][0].role`,
+                    { userId: value._ref }
+                )
+
+                return selectedUser === 'admin' || selectedUser === 'billing' ||
+                    'Der ausgewählte Benutzer muss Admin oder Rechnungsempfänger sein'
+            })
         }),
         defineField({
             name: 'users',

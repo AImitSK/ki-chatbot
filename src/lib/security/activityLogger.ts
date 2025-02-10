@@ -1,24 +1,23 @@
 // src/lib/security/activityLogger.ts
-import { headers } from 'next/headers'
-import { writeClient } from '@/lib/sanity/client'  // Änderung hier: writeClient statt client
+import { writeClient } from '@/lib/sanity/client'
 
 export interface LogActivityParams {
     userId: string
     activityType: string
     details?: string
+    ipAddress?: string
+    userAgent?: string
 }
 
 export async function logActivity({
                                       userId,
                                       activityType,
-                                      details
+                                      details,
+                                      ipAddress = 'unknown',
+                                      userAgent = 'unknown'
                                   }: LogActivityParams) {
     try {
-        const headersList = headers()
-        const ip = headersList.get('x-forwarded-for') || 'unknown'
-        const userAgent = headersList.get('user-agent') || 'unknown'
-
-        await writeClient.create({  // Änderung hier: writeClient statt client
+        await writeClient.create({
             _type: 'activityLog',
             user: {
                 _type: 'reference',
@@ -26,12 +25,12 @@ export async function logActivity({
             },
             activityType,
             timestamp: new Date().toISOString(),
-            ipAddress: ip,
+            ipAddress,
             userAgent,
             details
         })
     } catch (error) {
         console.error('Error logging activity:', error)
-        throw error // Weitergeben des Fehlers für besseres Debugging
+        throw error
     }
 }

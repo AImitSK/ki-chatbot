@@ -19,7 +19,9 @@ export function BillingRecipient({
                                      currentRecipient,
                                      onRecipientCreated
                                  }: BillingRecipientProps) {
-    const [isCreating, setIsCreating] = useState(false)
+    const [isEditing, setIsEditing] = useState(false)
+
+    const isAdminRecipient = currentRecipient?.role === 'admin'
 
     const handleSubmit = async (data: {
         name: string
@@ -29,13 +31,14 @@ export function BillingRecipient({
     }) => {
         try {
             const response = await fetch('/api/company/billing-recipient', {
-                method: 'POST',
+                method: isAdminRecipient ? 'POST' : 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
                     ...data,
-                    companyId
+                    companyId,
+                    userId: !isAdminRecipient ? currentRecipient?._id : undefined
                 }),
             })
 
@@ -45,21 +48,23 @@ export function BillingRecipient({
             }
 
             const result = await response.json()
-            showSuccessToast(
-                'Rechnungsempfänger wurde angelegt. Das temporäre Passwort lautet: ' +
-                result.tempPassword
-            )
+
+            if (isAdminRecipient) {
+                showSuccessToast('Einladung wurde an den neuen Rechnungsempfänger versendet.')
+            } else {
+                showSuccessToast('Rechnungsempfänger wurde aktualisiert')
+            }
 
             if (onRecipientCreated) {
                 onRecipientCreated(result.user)
             }
 
-            setIsCreating(false)
+            setIsEditing(false)
         } catch (error) {
             showErrorToast(
                 error instanceof Error
                     ? error.message
-                    : 'Fehler beim Anlegen des Rechnungsempfängers'
+                    : 'Fehler beim Speichern des Rechnungsempfängers'
             )
         }
     }
@@ -67,53 +72,64 @@ export function BillingRecipient({
     return (
         <Card className="p-6 space-y-6">
             <div className="flex justify-between items-center">
-                <div className="text-lg font-medium">Rechnungsempfänger</div>
-                {!currentRecipient && !isCreating && (
+                <div className="text-lg font-medium">
+                    {isAdminRecipient ? 'Rechnungsempfänger festlegen' : 'Rechnungsempfänger'}
+                </div>
+                {!isEditing && (
                     <Button
-                        onClick={() => setIsCreating(true)}
+                        onClick={() => setIsEditing(true)}
+                        className="text-white"
                     >
-                        Rechnungsempfänger anlegen
+                        {isAdminRecipient ? 'Rechnungsempfänger anlegen' : 'Bearbeiten'}
                     </Button>
                 )}
             </div>
 
-            {currentRecipient ? (
-                <div className="space-y-4">
-                    <div>
-                        <div className="text-sm text-zinc-500">Name</div>
-                        <div>{currentRecipient.name}</div>
-                    </div>
-                    <div>
-                        <div className="text-sm text-zinc-500">E-Mail</div>
-                        <div>{currentRecipient.email}</div>
-                    </div>
-                    {currentRecipient.telefon && (
-                        <div>
-                            <div className="text-sm text-zinc-500">Telefon</div>
-                            <div>{currentRecipient.telefon}</div>
-                        </div>
-                    )}
-                    {currentRecipient.position && (
-                        <div>
-                            <div className="text-sm text-zinc-500">Position</div>
-                            <div>{currentRecipient.position}</div>
-                        </div>
-                    )}
-                </div>
-            ) : (
-                <div className="bg-zinc-50 rounded-lg p-4">
-                    {isCreating ? (
+            <div>
+                {isEditing ? (
+                    <div className="bg-zinc-50 rounded-lg p-4">
                         <BillingRecipientForm
+                            initialData={!isAdminRecipient ? {
+                                name: currentRecipient?.name || '',
+                                email: currentRecipient?.email || '',
+                                telefon: currentRecipient?.telefon || '',
+                                position: currentRecipient?.position || ''
+                            } : undefined}
                             onSubmit={handleSubmit}
-                            onCancel={() => setIsCreating(false)}
+                            onCancel={() => setIsEditing(false)}
                         />
-                    ) : (
+                    </div>
+                ) : isAdminRecipient ? (
+                    <div className="bg-zinc-50 rounded-lg p-4">
                         <div className="text-zinc-500 text-sm">
-                            Noch kein Rechnungsempfänger festgelegt
+                            Aktuell ist der Admin als Rechnungsempfänger eingetragen. Legen Sie einen dedizierten Rechnungsempfänger an.
                         </div>
-                    )}
-                </div>
-            )}
+                    </div>
+                ) : (
+                    <div className="space-y-4">
+                        <div>
+                            <div className="text-sm text-zinc-500">Name</div>
+                            <div>{currentRecipient?.name}</div>
+                        </div>
+                        <div>
+                            <div className="text-sm text-zinc-500">E-Mail</div>
+                            <div>{currentRecipient?.email}</div>
+                        </div>
+                        {currentRecipient?.telefon && (
+                            <div>
+                                <div className="text-sm text-zinc-500">Telefon</div>
+                                <div>{currentRecipient?.telefon}</div>
+                            </div>
+                        )}
+                        {currentRecipient?.position && (
+                            <div>
+                                <div className="text-sm text-zinc-500">Position</div>
+                                <div>{currentRecipient?.position}</div>
+                            </div>
+                        )}
+                    </div>
+                )}
+            </div>
         </Card>
     )
 }

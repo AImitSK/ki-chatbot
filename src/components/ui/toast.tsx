@@ -23,3 +23,14 @@ export function ToastContainer() {
         <Toaster />
     )
 }
+
+export const showWarningToast = (message: string) => {
+    toast(message, {
+        duration: 4000,
+        position: 'top-right',
+        style: {
+            background: '#facc15', // Gelber Hintergrund für Warnungen
+            color: '#000',
+        },
+    })
+}
