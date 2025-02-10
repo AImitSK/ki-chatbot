@@ -48,9 +48,9 @@ export async function POST(req: Request) {
             userId = newUser._id;
             console.log('✅ Neuer Benutzer erfolgreich erstellt:', userId);
 
-            // 2.1 Warten, bis Sanity den User synchronisiert
-            console.log('⏳ Warte auf Sanity-Synchronisation...');
-            await new Promise((resolve) => setTimeout(resolve, 1500));
+            // 2.1 Warten, bis Sanity den User synchronisiert (2s)
+            console.log('⏳ Warte 2s auf Sanity-Synchronisation...');
+            await new Promise((resolve) => setTimeout(resolve, 2000));
 
             // 2.2 Sicherstellen, dass der User jetzt in der DB existiert
             const checkUser = await writeClient.fetch(
@@ -67,13 +67,18 @@ export async function POST(req: Request) {
             console.log('✅ Benutzer existiert bereits, benutze existierende ID:', userId);
         }
 
-        // 3️⃣ Prüfen, ob der User wirklich existiert, bevor wir eine Referenz setzen
-        if (!userId) {
-            console.error('❌ Fehler: Benutzer-ID ist null oder undefined.');
-            return new NextResponse('Benutzer konnte nicht erstellt oder gefunden werden.', { status: 500 });
+        // 3️⃣ Letzte Sicherheitsprüfung: User existiert in Sanity?
+        const finalCheck = await writeClient.fetch(
+            `*[_type == "user" && _id == $userId][0]`,
+            { userId }
+        );
+
+        if (!finalCheck) {
+            console.error('❌ Fehler: Benutzer wurde in Sanity nicht gefunden.');
+            return new NextResponse('Benutzer konnte nicht mit Projekt verknüpft werden.', { status: 500 });
         }
 
-        // 4️⃣ Erst hier: Benutzer in Projekt eintragen
+        // 4️⃣ Erst jetzt Benutzer in Projekt eintragen
         console.log('📌 Benutzer wird als Rechnungsempfänger und Berechtigter User in das Projekt eingetragen.');
         const updatedProject = await writeClient
             .patch(invite.companyId)
@@ -83,7 +88,7 @@ export async function POST(req: Request) {
 
         console.log('✅ Benutzer wurde als Rechnungsempfänger & Berechtigter User eingetragen:', updatedProject);
 
-        // 5️⃣ Einladung löschen, nachdem ALLES stabil gespeichert wurde
+        // 5️⃣ Einladung erst jetzt löschen, nachdem ALLES stabil gespeichert wurde
         await writeClient.delete(invite._id);
         console.log('🗑️ Einladung wurde gelöscht.');
 
