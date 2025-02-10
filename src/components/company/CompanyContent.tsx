@@ -6,6 +6,8 @@ import { CompanyForm } from '@/components/forms/CompanyForm'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/Card'
 import { InvoiceList } from './InvoiceList'
+import { BillingRecipient } from './BillingRecipient'
+import { User } from '@/types'
 
 interface CompanyData {
     _id: string
@@ -18,6 +20,7 @@ interface CompanyData {
     telefon?: string
     email?: string
     webseite?: string
+    rechnungsempfaenger?: User
 }
 
 interface CompanyContentProps {
@@ -45,10 +48,17 @@ export function CompanyContent({ initialData }: CompanyContentProps) {
         }
     }
 
+    const handleRecipientCreated = (user: User) => {
+        setCompanyData(prev => ({
+            ...prev,
+            rechnungsempfaenger: user
+        }))
+    }
+
     return (
         <div className="space-y-8">
+            {/* Unternehmensdaten */}
             <Card className="p-6 space-y-6">
-                {/* Header mit Titel und Button */}
                 <div className="flex justify-between items-center">
                     <div className="text-lg font-medium">Unternehmensdaten</div>
                     {!isEditing && (
@@ -58,7 +68,6 @@ export function CompanyContent({ initialData }: CompanyContentProps) {
                     )}
                 </div>
 
-                {/* Inhalt: Vorschau oder Formular */}
                 {!isEditing ? (
                     <div className="space-y-4">
                         <div>
@@ -107,6 +116,13 @@ export function CompanyContent({ initialData }: CompanyContentProps) {
                     />
                 )}
             </Card>
+
+            {/* Rechnungsempfänger */}
+            <BillingRecipient
+                companyId={companyData._id}
+                currentRecipient={companyData.rechnungsempfaenger}
+                onRecipientCreated={handleRecipientCreated}
+            />
 
             {/* Rechnungen */}
             <Card className="p-6">

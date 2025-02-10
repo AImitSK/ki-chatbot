@@ -28,3 +28,22 @@ export interface User {
     notizen?: string;
 }
 
+export type UserRole = 'admin' | 'billing' | 'user'
+
+export interface User {
+    _id: string
+    name: string
+    email: string
+    telefon?: string
+    position?: string
+    role: UserRole
+    aktiv: boolean
+    avatar?: {
+        asset: {
+            _ref: string
+            url?: string
+        }
+    }
+    createdAt: string
+    updatedAt: string
+}

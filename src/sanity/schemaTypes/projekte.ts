@@ -1,6 +1,16 @@
 // src/sanity/schemaTypes/projekte.ts
 import { defineType, defineField } from 'sanity'
-import type { ValidationContext } from '@sanity/types'
+import type { ValidationContext, SanityDocument } from '@sanity/types'
+
+interface SanityReference {
+    _ref: string;
+    _type: 'reference';
+}
+
+interface ProjectDocument extends SanityDocument {
+    rechnungsempfaenger?: SanityReference;
+    users?: SanityReference[];
+}
 
 export const projektSchema = defineType({
     name: 'projekte',
@@ -15,19 +25,6 @@ export const projektSchema = defineType({
                 .required()
                 .min(2)
                 .max(100)
-                .custom((titel, context: ValidationContext) => {
-                    if (!titel) return true
-
-                    const client = context.getClient({apiVersion: '2024-01-29'})
-                    const query = `*[_type == "projekte" && titel == $titel && !(_id in [$id])][0]`
-
-                    return client.fetch(query, {
-                        titel,
-                        id: context.document?._id || 'none'
-                    }).then(exists => {
-                        return exists ? 'Ein Projekt mit diesem Titel existiert bereits' : true
-                    })
-                })
         }),
         defineField({
             name: 'slug',
@@ -40,30 +37,62 @@ export const projektSchema = defineType({
             validation: Rule => Rule.required()
         }),
         defineField({
+            name: 'rechnungsempfaenger',
+            title: 'Rechnungsempfänger',
+            type: 'reference',
+            to: [{ type: 'user' }],
+            options: {
+                filter: 'role == "billing" && aktiv == true'
+            },
+            validation: Rule => Rule.required()
+        }),
+        defineField({
             name: 'users',
             title: 'Berechtigte User',
+            description: 'Der Rechnungsempfänger hat automatisch Zugriff',
             type: 'array',
             of: [{
                 type: 'reference',
-                to: [{ type: 'user' }]
+                to: [{ type: 'user' }],
+                options: {
+                    filter: ({ document }: { document: { rechnungsempfaenger?: { _ref: string } } }) => {
+                        const rechnungsempfaengerId = document?.rechnungsempfaenger?._ref || 'none'
+
+                        return {
+                            filter: 'aktiv == true && (role != "billing" || _id == $rechnungsempfaengerId)',
+                            params: { rechnungsempfaengerId }
+                        }
+                    }
+                }
             }],
             validation: Rule => Rule
-                .required()
-                .min(1)
                 .unique()
+                .custom((users: SanityReference[] | undefined, context: ValidationContext) => {
+                    // Prüfe ob ein Document existiert
+                    const doc = context.document as ProjectDocument | undefined
+                    if (!doc) return true
+
+                    // Wenn keine Users definiert sind, erlaube es
+                    if (!users || users.length === 0) return true
+
+                    // Hole den Rechnungsempfänger
+                    const rechnungsempfaenger = doc.rechnungsempfaenger
+                    if (!rechnungsempfaenger?._ref) return true
+
+                    // Stelle sicher, dass der Rechnungsempfänger in der User-Liste ist
+                    const userRefs = users.map(user => user._ref)
+                    if (!userRefs.includes(rechnungsempfaenger._ref)) {
+                        return 'Der Rechnungsempfänger muss in der Liste der berechtigten User enthalten sein'
+                    }
+
+                    return true
+                })
         }),
         defineField({
             name: 'unternehmen',
             title: 'Unternehmen',
             type: 'reference',
             to: [{ type: 'unternehmen' }],
-            validation: Rule => Rule.required()
-        }),
-        defineField({
-            name: 'rechnungsempfaenger',
-            title: 'Rechnungsempfänger',
-            type: 'reference',
-            to: [{ type: 'user' }],
             validation: Rule => Rule.required()
         }),
         defineField({
@@ -141,4 +170,3 @@ export const projektSchema = defineType({
         }
     }
 })
-
