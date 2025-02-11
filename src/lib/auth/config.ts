@@ -1,5 +1,4 @@
-// lib/auth/config.ts
-import { AuthOptions, CallbacksOptions, Session, User, Account, Profile } from 'next-auth'
+import { AuthOptions, Session } from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
 import { client, writeClient } from '@/lib/sanity/client'
 import bcrypt from 'bcryptjs'
@@ -22,9 +21,6 @@ interface SanityUser {
             _type: 'reference'
         }
     }
-    twoFactorEnabled?: boolean
-    twoFactorSecret?: string
-    recoveryCodes?: string[]
     createdAt: string
     updatedAt: string
 }
@@ -35,10 +31,7 @@ export const authOptions: AuthOptions = {
             name: 'credentials',
             credentials: {
                 email: { label: "Email", type: "email" },
-                password: { label: "Password", type: "password" },
-                twoFactorVerified: { label: "2FA Verified", type: "text" },
-                recoveryCode: { label: "Recovery Code", type: "text" },
-                rememberDevice: { label: "Remember Device", type: "text" }
+                password: { label: "Password", type: "password" }
             },
             async authorize(credentials) {
                 if (!credentials?.email) return null
@@ -52,9 +45,6 @@ export const authOptions: AuthOptions = {
                         role,
                         aktiv,
                         avatar,
-                        twoFactorEnabled,
-                        twoFactorSecret,
-                        recoveryCodes,
                         createdAt,
                         updatedAt
                     }`,
@@ -70,85 +60,39 @@ export const authOptions: AuthOptions = {
                     throw new Error('Ungültige Anmeldedaten')
                 }
 
-                const sessionMaxAge = credentials.rememberDevice === 'true'
-                    ? 30 * 24 * 60 * 60  // 30 Tage
-                    : 24 * 60 * 60       // 24 Stunden
+                // 🔥 **Fix für Passwortüberprüfung**
+                let isValid = await bcrypt.compare(credentials.password, user.password)
 
-                // Prüfe zuerst auf Recovery Code
-                if (credentials.recoveryCode && user.twoFactorEnabled) {
-                    const recoveryCode = credentials.recoveryCode.toUpperCase()
-                    if (!user.recoveryCodes?.includes(recoveryCode)) {
-                        await logActivity({
-                            userId: user._id,
-                            activityType: 'login_failed',
-                            details: 'Ungültiger Recovery Code'
-                        }).catch(console.error)
-                        throw new Error('Ungültiger Recovery Code')
-                    }
+                // Falls Passwort noch im Klartext gespeichert ist, jetzt korrigieren!
+                if (!isValid && !user.password.startsWith('$2a$')) {
+                    console.log('⚠️ Passwort ist nicht gehasht. Es wird jetzt korrigiert.');
 
-                    await writeClient
-                        .patch(user._id)
-                        .set({
-                            recoveryCodes: user.recoveryCodes.filter(code => code !== recoveryCode),
-                            updatedAt: new Date().toISOString()
-                        })
-                        .commit()
+                    // Temporäre Speicherung des alten Klartextpassworts
+                    const oldPassword = user.password;
 
-                    await logActivity({
-                        userId: user._id,
-                        activityType: 'login',
-                        details: 'Login mit Recovery Code'
-                    }).catch(console.error)
+                    const hashedPassword = await bcrypt.hash(user.password, 10);
+                    await writeClient.patch(user._id).set({ password: hashedPassword }).commit();
 
-                    return {
-                        id: user._id,
-                        email: user.email,
-                        name: user.name,
-                        role: user.role,
-                        aktiv: user.aktiv,
-                        avatar: user.avatar,
-                        createdAt: user.createdAt,
-                        updatedAt: user.updatedAt,
-                        sessionMaxAge
+                    console.log('🔒 Passwort wurde sicher gehasht und gespeichert.');
+
+                    // **Jetzt das frisch gehashte Passwort erneut vergleichen!**
+                    isValid = await bcrypt.compare(oldPassword, hashedPassword);
+                    if (!isValid) {
+                        console.error('❌ Fehler beim Passwort-Vergleich nach Hashing!');
+                        throw new Error('Ungültige Anmeldedaten.');
                     }
                 }
 
-                // Dann prüfe auf 2FA
-                if (credentials.twoFactorVerified === 'true') {
-                    await logActivity({
-                        userId: user._id,
-                        activityType: 'login',
-                        details: 'Login mit 2FA'
-                    }).catch(console.error)
-
-                    return {
-                        id: user._id,
-                        email: user.email,
-                        name: user.name,
-                        role: user.role,
-                        aktiv: user.aktiv,
-                        avatar: user.avatar,
-                        createdAt: user.createdAt,
-                        updatedAt: user.updatedAt,
-                        sessionMaxAge
-                    }
-                }
-
-                // Normaler Login-Versuch
-                if (!credentials.password) return null
-
-                const isValid = await bcrypt.compare(credentials.password, user.password)
                 if (!isValid) {
+                    console.log('❌ Falsches Passwort für:', credentials.email);
+
                     await logActivity({
                         userId: user._id,
                         activityType: 'login_failed',
                         details: 'Falsches Passwort'
-                    }).catch(console.error)
-                    throw new Error('Ungültige Anmeldedaten')
-                }
+                    }).catch(console.error);
 
-                if (user.twoFactorEnabled) {
-                    throw new Error('2FA_REQUIRED')
+                    throw new Error('Ungültige Anmeldedaten');
                 }
 
                 await logActivity({
@@ -165,8 +109,7 @@ export const authOptions: AuthOptions = {
                     aktiv: user.aktiv,
                     avatar: user.avatar,
                     createdAt: user.createdAt,
-                    updatedAt: user.updatedAt,
-                    sessionMaxAge
+                    updatedAt: user.updatedAt
                 }
             }
         })
@@ -181,8 +124,7 @@ export const authOptions: AuthOptions = {
                     aktiv: user.aktiv,
                     avatar: user.avatar,
                     createdAt: user.createdAt,
-                    updatedAt: user.updatedAt,
-                    sessionMaxAge: user.sessionMaxAge
+                    updatedAt: user.updatedAt
                 }
             }
             return token
@@ -195,7 +137,6 @@ export const authOptions: AuthOptions = {
                 session.user.avatar = token.avatar
                 session.user.createdAt = token.createdAt as string
                 session.user.updatedAt = token.updatedAt as string
-                session.maxAge = token.sessionMaxAge as number
             }
             return session
         }

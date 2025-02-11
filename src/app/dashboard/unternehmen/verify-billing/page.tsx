@@ -1,72 +1,71 @@
-'use client'
+// app/dashboard/unternehmen/verify-billing/page.tsx
+"use client";
 
-import { useEffect, useState } from 'react'
-import { useSearchParams, useRouter } from 'next/navigation'
-import { showSuccessToast, showErrorToast, showWarningToast } from '@/components/ui/toast'
-import { useSession, signOut } from 'next-auth/react'
+import { useEffect, useState, useRef } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useSession, signOut } from "next-auth/react";
 
-export default function VerifyBillingPage() {
-    const [isVerifying, setIsVerifying] = useState(true)
-    const searchParams = useSearchParams()
-    const router = useRouter()
-    const token = searchParams.get('token')
-    const { data: session } = useSession()
-
-    console.log('--- Token aus der URL:', token);
-    console.log('--- Aktuelle Session:', session);
+export default function VerifyBilling() {
+    const [status, setStatus] = useState("Verifiziere...");
+    const searchParams = useSearchParams();
+    const router = useRouter();
+    const { data: session } = useSession();
+    const token = searchParams.get("token");
+    // Ref um zu tracken ob die Verifizierung bereits läuft
+    const isVerifying = useRef(false);
 
     useEffect(() => {
-        if (session) {
-            showWarningToast('Bitte loggen Sie sich aus, um die Verifizierung durchzuführen.');
-            setTimeout(() => signOut(), 2000); // Automatisch ausloggen
+        if (!token) {
+            setStatus("Ungültiger Token.");
             return;
         }
 
-        const verifyInvitation = async () => {
-            if (!token) {
-                showErrorToast('Ungültiger Token')
-                router.push('/auth/login')
-                return
-            }
+        async function verifyBilling() {
+            // Verhindere doppelte Ausführung
+            if (isVerifying.current) return;
+            isVerifying.current = true;
 
             try {
-                console.log('--- Sende Anfrage zur Token-Verifizierung an /api/billing/verify');
-
-                const response = await fetch('/api/billing/verify', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ token })
-                })
-
-                const data = await response.json()
-                console.log('--- Antwort von /api/billing/verify:', data);
-
-                if (!response.ok) {
-                    throw new Error(data.error || data.message)
+                // Wenn User eingeloggt ist, ausloggen
+                if (session?.user) {
+                    await signOut({ redirect: false });
                 }
 
-                showSuccessToast('Account wurde erfolgreich aktiviert. Sie können sich jetzt anmelden.')
-                router.push('/auth/login')
+                const res = await fetch("/api/billing/verify", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ token }),
+                });
+
+                if (res.ok) {
+                    setStatus("Erfolgreich verifiziert! Sie werden zum Login weitergeleitet...");
+                    setTimeout(() => router.push("/auth/login"), 3000);
+                } else {
+                    const error = await res.json();
+                    setStatus(error.message || "Fehler bei der Verifizierung.");
+                }
             } catch (error) {
-                console.error('❌ Fehler bei der Token-Verifizierung:', error);
-                showErrorToast(error instanceof Error ? error.message : 'Verifizierung fehlgeschlagen')
-                router.push('/auth/login')
-            } finally {
-                setIsVerifying(false)
+                setStatus("Netzwerkfehler. Bitte erneut versuchen.");
             }
         }
 
-        verifyInvitation()
-    }, [token, router, session])
+        verifyBilling();
+    }, [token, router, session]);
 
     return (
-        <div className="min-h-[400px] flex items-center justify-center">
-            <div className="text-center">
-                <h2 className="text-xl font-semibold mb-2">
-                    {isVerifying ? 'Account wird aktiviert...' : 'Aktivierung abgeschlossen'}
-                </h2>
-                <p className="text-zinc-500">Sie werden weitergeleitet...</p>
+        <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+            <div className="max-w-md w-full space-y-8">
+                <div className="text-center">
+                    <h2 className="mt-6 text-3xl font-extrabold text-gray-900">
+                        Rechnungsempfänger Verifizierung
+                    </h2>
+                    <div className="mt-4">
+                        <p className="text-lg text-gray-700">
+                            {status}
+                        </p>
+                    </div>
+                </div>
             </div>
         </div>
-    )
+    );
 }

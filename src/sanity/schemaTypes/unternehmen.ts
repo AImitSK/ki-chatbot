@@ -11,24 +11,17 @@ export const unternehmenSchema = defineType({
             name: 'name',
             title: 'Unternehmen',
             type: 'string',
-            validation: Rule => Rule
-                .required()
-                .min(2)
-                .max(100)
-                .custom<string>((name, context: ValidationContext) => {
-                    if (!name) return true
-
-                    const client = context.getClient({apiVersion: '2024-01-29'})
-                    return client.fetch(`
-                        *[_type == "unternehmen" && name == $name && _id != $id][0]
-                    `, {
-                        name,
-                        id: context.document?._id
-                    }).then(existingCompany => {
-                        return existingCompany ? 'Ein Unternehmen mit diesem Namen existiert bereits' : true
-                    })
-                }),
-            description: 'Offizieller Unternehmensname'
+            validation: Rule => Rule.required().min(2)
+        }),
+        defineField({
+            name: 'slug',
+            title: 'Slug',
+            type: 'slug',
+            options: {
+                source: 'name',
+                maxLength: 96
+            },
+            validation: Rule => Rule.required()
         }),
         defineField({
             name: 'strasse',
@@ -142,6 +135,13 @@ export const unternehmenSchema = defineType({
             title: 'Interne Notizen',
             type: 'text',
             rows: 3
+        }),
+        defineField({
+            name: 'rechnungsempfaenger', // 🔥 Neu: Rechnungsempfänger als Referenz zum User
+            title: 'Rechnungsempfänger',
+            type: 'reference',
+            to: [{ type: 'user' }],
+            description: 'Dieser Benutzer ist für Rechnungen zuständig'
         }),
         defineField({
             name: 'createdAt',

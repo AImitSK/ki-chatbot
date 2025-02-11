@@ -5,11 +5,16 @@ import type { ValidationContext, SanityDocument } from '@sanity/types'
 interface SanityReference {
     _ref: string;
     _type: 'reference';
+    _key?: string;
+}
+
+interface FilterDocument {
+    unternehmen?: SanityReference;
 }
 
 interface ProjectDocument extends SanityDocument {
-    rechnungsempfaenger?: SanityReference;
     users?: SanityReference[];
+    unternehmen?: SanityReference;
 }
 
 export const projektSchema = defineType({
@@ -37,86 +42,43 @@ export const projektSchema = defineType({
             validation: Rule => Rule.required()
         }),
         defineField({
-            name: 'rechnungsempfaenger',
-            title: 'Rechnungsempfänger',
-            type: 'reference',
-            to: [{ type: 'user' }],
-            options: {
-                filter: 'role == "billing" || role == "admin"'
-            },
-            validation: Rule => Rule.custom(async (value, context) => {
-                const client = context.getClient({apiVersion: '2024-01-29'})
-
-                if (!value?._ref) {
-                    const adminUser = await client.fetch(`
-               *[_type == "user" && role == "admin"][0]._id
-           `)
-
-                    if (!adminUser) {
-                        return 'Es muss mindestens ein Admin existieren'
-                    }
-
-                    if (context.document) {
-                        await client.patch(context.document._id).set({
-                            rechnungsempfaenger: {
-                                _type: 'reference',
-                                _ref: adminUser
-                            }
-                        }).commit()
-                    }
-                    return true
-                }
-
-                const selectedUser = await client.fetch(`
-           *[_type == "user" && _id == $userId][0].role`,
-                    { userId: value._ref }
-                )
-
-                return selectedUser === 'admin' || selectedUser === 'billing' ||
-                    'Der ausgewählte Benutzer muss Admin oder Rechnungsempfänger sein'
-            })
-        }),
-        defineField({
             name: 'users',
             title: 'Berechtigte User',
-            description: 'Der Rechnungsempfänger hat automatisch Zugriff',
+            description: 'Der Rechnungsempfänger des Unternehmens hat automatisch Zugriff',
             type: 'array',
             of: [{
                 type: 'reference',
                 to: [{ type: 'user' }],
                 options: {
-                    filter: ({ document }: { document: { rechnungsempfaenger?: { _ref: string } } }) => {
-                        const rechnungsempfaengerId = document?.rechnungsempfaenger?._ref || 'none'
+                    filter: async ({ document, getClient }: {
+                        document: FilterDocument;
+                        getClient: any;
+                    }) => {
+                        const companyId = document?.unternehmen?._ref;
+                        if (!companyId) {
+                            return {
+                                filter: 'aktiv == true',
+                                params: {}
+                            };
+                        }
+
+                        const client = getClient({apiVersion: '2024-01-29'});
+                        const company = await client.fetch(`
+                            *[_type == "unternehmen" && _id == $companyId][0] {
+                                "rechnungsempfaengerId": rechnungsempfaenger._ref
+                            }
+                        `, { companyId });
 
                         return {
                             filter: 'aktiv == true && (role != "billing" || _id == $rechnungsempfaengerId)',
-                            params: { rechnungsempfaengerId }
-                        }
+                            params: {
+                                rechnungsempfaengerId: company?.rechnungsempfaengerId || 'none'
+                            }
+                        };
                     }
                 }
             }],
-            validation: Rule => Rule
-                .unique()
-                .custom((users: SanityReference[] | undefined, context: ValidationContext) => {
-                    // Prüfe ob ein Document existiert
-                    const doc = context.document as ProjectDocument | undefined
-                    if (!doc) return true
-
-                    // Wenn keine Users definiert sind, erlaube es
-                    if (!users || users.length === 0) return true
-
-                    // Hole den Rechnungsempfänger
-                    const rechnungsempfaenger = doc.rechnungsempfaenger
-                    if (!rechnungsempfaenger?._ref) return true
-
-                    // Stelle sicher, dass der Rechnungsempfänger in der User-Liste ist
-                    const userRefs = users.map(user => user._ref)
-                    if (!userRefs.includes(rechnungsempfaenger._ref)) {
-                        return 'Der Rechnungsempfänger muss in der Liste der berechtigten User enthalten sein'
-                    }
-
-                    return true
-                })
+            validation: Rule => Rule.unique()
         }),
         defineField({
             name: 'unternehmen',

@@ -1,36 +1,33 @@
-// src/lib/security/activityLogger.ts
+// lib/security/activityLogger.ts
 import { writeClient } from '@/lib/sanity/client'
 
-export interface LogActivityParams {
-    userId: string
-    activityType: string
-    details?: string
-    ipAddress?: string
-    userAgent?: string
+interface ActivityLogData {
+    userId: string;
+    userEmail?: string;
+    activityType: string;
+    details?: string;
 }
 
 export async function logActivity({
                                       userId,
+                                      userEmail,
                                       activityType,
-                                      details,
-                                      ipAddress = 'unknown',
-                                      userAgent = 'unknown'
-                                  }: LogActivityParams) {
+                                      details
+                                  }: ActivityLogData) {
     try {
-        await writeClient.create({
+        const activity = {
             _type: 'activityLog',
-            user: {
-                _type: 'reference',
-                _ref: userId
-            },
+            userId: userId || 'anonymous',
+            userEmail,
             activityType,
-            timestamp: new Date().toISOString(),
-            ipAddress,
-            userAgent,
-            details
-        })
+            details,
+            timestamp: new Date().toISOString()
+        }
+
+        await writeClient.create(activity)
+        console.log('✅ Aktivität geloggt:', activityType)
     } catch (error) {
-        console.error('Error logging activity:', error)
-        throw error
+        console.error('Fehler beim Logging der Aktivität:', error)
+        // Fehler beim Logging sollte die Hauptfunktionalität nicht blockieren
     }
 }

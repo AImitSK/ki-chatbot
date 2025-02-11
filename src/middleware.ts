@@ -3,7 +3,14 @@ import { withAuth } from 'next-auth/middleware'
 
 export default withAuth({
     callbacks: {
-        authorized: ({ token }) => !!token,
+        authorized: ({ token, req }) => {
+            // Verifizierungs-Route immer erlauben
+            if (req.nextUrl.pathname.startsWith('/dashboard/unternehmen/verify-billing')) {
+                return true
+            }
+            // Für alle anderen geschützten Routen Token prüfen
+            return !!token
+        },
     },
 })
 

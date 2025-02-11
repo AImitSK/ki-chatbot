@@ -1,103 +1,134 @@
+// app/api/billing/verify/route.ts
 import { NextResponse } from 'next/server'
 import { writeClient } from '@/lib/sanity/client'
+import bcrypt from 'bcryptjs'
 
 export async function POST(req: Request) {
     try {
-        const { token } = await req.json();
-        console.log('--- Verifizierungs-Token erhalten:', token);
+        const { token } = await req.json()
+        console.log('--- [DEBUG] Verifizierung gestartet ---')
 
-        // 1️⃣ Einladung prüfen
-        const invite = await writeClient.fetch(
-            `*[_type == "billingInvite" && token == $token][0]`,
-            { token }
-        );
+        // 1. Hole die Einladung
+        const invite = await writeClient.fetch(`
+            *[_type == "billingInvite" && 
+              token == $token && 
+              !defined(usedAt) &&
+              dateTime(expiresAt) > dateTime(now())
+            ][0]
+        `, { token })
 
         if (!invite) {
-            console.error('❌ Einladung nicht gefunden oder abgelaufen.');
-            return new NextResponse('Ungültige oder abgelaufene Einladung.', { status: 400 });
+            console.error('❌ Einladung nicht gefunden oder abgelaufen')
+            return NextResponse.json({
+                message: 'Einladung nicht gefunden oder abgelaufen'
+            }, { status: 400 })
         }
 
-        console.log('✅ Einladung gefunden:', invite);
+        // 2. Hole oder erstelle User
+        const hashedPassword = await bcrypt.hash(invite.tempPassword, 10)
+        let userId
 
-        // 2️⃣ Benutzer prüfen/erstellen
-        let userId;
-        let existingUser = await writeClient.fetch(
+        const existingUser = await writeClient.fetch(
             `*[_type == "user" && email == $email][0]`,
             { email: invite.email }
-        );
+        )
 
-        if (!existingUser) {
-            console.log('📌 Benutzer existiert noch nicht, erstelle neuen User.');
-
+        if (existingUser) {
+            userId = existingUser._id
+            // Update existierenden User
+            await writeClient
+                .patch(userId)
+                .set({
+                    name: invite.name,
+                    telefon: invite.telefon,
+                    position: invite.position,
+                    password: hashedPassword,
+                    role: 'billing',
+                    aktiv: true,
+                    updatedAt: new Date().toISOString()
+                })
+                .commit()
+            console.log('✅ Existierender User aktualisiert:', userId)
+        } else {
+            // Erstelle neuen User
             const newUser = await writeClient.create({
                 _type: 'user',
                 name: invite.name,
                 email: invite.email,
                 telefon: invite.telefon,
                 position: invite.position,
-                password: invite.tempPassword,
+                password: hashedPassword,
+                role: 'billing',
                 aktiv: true,
-                createdAt: new Date().toISOString()
-            });
-
-            if (!newUser?._id) {
-                console.error('❌ Fehler: Neuer Benutzer konnte nicht erstellt werden.');
-                return new NextResponse('Fehler beim Erstellen des Benutzers.', { status: 500 });
-            }
-
-            userId = newUser._id;
-            console.log('✅ Neuer Benutzer erfolgreich erstellt:', userId);
-
-            // 2.1 Warten, bis Sanity den User synchronisiert (2s)
-            console.log('⏳ Warte 2s auf Sanity-Synchronisation...');
-            await new Promise((resolve) => setTimeout(resolve, 2000));
-
-            // 2.2 Sicherstellen, dass der User jetzt in der DB existiert
-            const checkUser = await writeClient.fetch(
-                `*[_type == "user" && _id == $userId][0]`,
-                { userId }
-            );
-
-            if (!checkUser) {
-                console.error('❌ Fehler: User existiert nach Wartezeit nicht.');
-                return new NextResponse('Fehler bei der Verknüpfung mit dem Projekt.', { status: 500 });
-            }
-        } else {
-            userId = existingUser._id;
-            console.log('✅ Benutzer existiert bereits, benutze existierende ID:', userId);
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+            })
+            userId = newUser._id
+            console.log('✅ Neuer User erstellt:', userId)
         }
 
-        // 3️⃣ Letzte Sicherheitsprüfung: User existiert in Sanity?
-        const finalCheck = await writeClient.fetch(
-            `*[_type == "user" && _id == $userId][0]`,
-            { userId }
-        );
+        // 3. Hole das zugehörige Projekt
+        const project = await writeClient.fetch(`
+            *[_type == "projekte" && unternehmen._ref == $companyId][0]
+        `, { companyId: invite.companyId })
 
-        if (!finalCheck) {
-            console.error('❌ Fehler: Benutzer wurde in Sanity nicht gefunden.');
-            return new NextResponse('Benutzer konnte nicht mit Projekt verknüpft werden.', { status: 500 });
+        if (!project) {
+            throw new Error('Projekt nicht gefunden')
         }
 
-        // 4️⃣ Erst jetzt Benutzer in Projekt eintragen
-        console.log('📌 Benutzer wird als Rechnungsempfänger und Berechtigter User in das Projekt eingetragen.');
-        const updatedProject = await writeClient
+        // 4. Aktualisiere das Unternehmen
+        await writeClient
             .patch(invite.companyId)
-            .set({ rechnungsempfaenger: { _ref: userId, _type: 'reference' } })
-            .insert('after', 'users[-1]', [{ _ref: userId, _type: 'reference' }])
-            .commit();
+            .set({
+                rechnungsempfaenger: {
+                    _ref: userId,
+                    _type: 'reference'
+                }
+            })
+            .commit()
+        console.log('✅ Unternehmen aktualisiert')
 
-        console.log('✅ Benutzer wurde als Rechnungsempfänger & Berechtigter User eingetragen:', updatedProject);
+        // 5. Füge User zum Projekt hinzu
+        const existingUsers = project.users || []
+        const userRefs = existingUsers.map(u => u._ref)
 
-        // 5️⃣ Einladung erst jetzt löschen, nachdem ALLES stabil gespeichert wurde
-        await writeClient.delete(invite._id);
-        console.log('🗑️ Einladung wurde gelöscht.');
+        if (!userRefs.includes(userId)) {
+            await writeClient
+                .patch(project._id)
+                .set({
+                    users: [
+                        ...existingUsers,
+                        {
+                            _type: 'reference',
+                            _ref: userId,
+                            _key: `${userId}-${Date.now()}`
+                        }
+                    ]
+                })
+                .commit()
+        }
+        console.log('✅ Projekt aktualisiert')
+
+        // 6. Markiere Einladung als verwendet
+        await writeClient
+            .patch(invite._id)
+            .set({
+                usedAt: new Date().toISOString(),
+                verifiedUserId: userId
+            })
+            .commit()
+        console.log('✅ Einladung als verwendet markiert')
 
         return NextResponse.json({
-            message: 'Verifizierung erfolgreich, Benutzer wurde mit dem Projekt verknüpft.',
-            userId
-        });
+            message: 'Verifizierung erfolgreich',
+            success: true
+        })
+
     } catch (error) {
-        console.error('❌ Fehler bei der Verifizierung:', error);
-        return new NextResponse('Fehler bei der Verifizierung.', { status: 500 });
+        console.error('❌ Fehler bei der Verifizierung:', error)
+        return NextResponse.json({
+            message: error instanceof Error ? error.message : 'Ein Fehler ist aufgetreten.',
+            success: false
+        }, { status: 500 })
     }
 }

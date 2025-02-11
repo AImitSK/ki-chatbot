@@ -1,4 +1,3 @@
-// src/components/company/BillingRecipient.tsx
 'use client'
 
 import { useState } from 'react'
@@ -23,33 +22,41 @@ export function BillingRecipient({
 
     const isAdminRecipient = currentRecipient?.role === 'admin'
 
-    const handleSubmit = async (data: {
+    const handleSubmit = async (formData: {
         name: string
         email: string
         telefon?: string
         position?: string
     }) => {
         try {
+            // Wenn kein currentRecipient oder Admin ist -> POST für neuen User
+            const isNewUser = !currentRecipient || isAdminRecipient;
+
             const response = await fetch('/api/company/billing-recipient', {
-                method: isAdminRecipient ? 'POST' : 'PUT',
+                method: isNewUser ? 'POST' : 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({
-                    ...data,
+                body: JSON.stringify(isNewUser ? {
+                    // Für neue User
+                    ...formData,
+                    companyId
+                } : {
+                    // Für Update existierender User
+                    ...formData,
                     companyId,
-                    userId: !isAdminRecipient ? currentRecipient?._id : undefined
+                    userId: currentRecipient._id  // Hier senden wir die userId mit
                 }),
             })
 
             if (!response.ok) {
-                const errorData = await response.json()
-                throw new Error(errorData.message || 'Ein Fehler ist aufgetreten')
+                const error = await response.json()
+                throw new Error(error.message || 'Ein Fehler ist aufgetreten')
             }
 
             const result = await response.json()
 
-            if (isAdminRecipient) {
+            if (isNewUser) {
                 showSuccessToast('Einladung wurde an den neuen Rechnungsempfänger versendet.')
             } else {
                 showSuccessToast('Rechnungsempfänger wurde aktualisiert')
