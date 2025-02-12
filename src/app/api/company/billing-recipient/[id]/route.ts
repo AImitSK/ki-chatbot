@@ -14,52 +14,39 @@ export async function DELETE(
             return new NextResponse('Unauthorized', { status: 401 })
         }
 
-        // Finde das Projekt mit diesem Rechnungsempfänger
-        const project = await writeClient.fetch(
-            `*[_type == "projekte" && rechnungsempfaenger._ref == $userId][0]._id`,
-            { userId: params.id }
-        )
+        // Hole Admin als Fallback-Rechnungsempfänger
+        const adminUser = await writeClient.fetch(`
+            *[_type == "user" && role == "admin"][0]._id
+        `)
 
-        if (!project) {
-            return new NextResponse('Project not found', { status: 404 })
-        }
+        // Setze Admin als temporären Rechnungsempfänger
+        const company = await writeClient.fetch(`
+            *[_type == "projekte" && references($userId)][0].unternehmen._ref
+        `, { userId: params.id })
 
-        // Setze temporär den Admin als Rechnungsempfänger
-        const adminUser = await writeClient.fetch(
-            `*[_type == "user" && role == "admin"][0]._id`
-        )
-
-        await writeClient
-            .patch(project)
-            .set({
-                rechnungsempfaenger: {
-                    _type: 'reference',
-                    _ref: adminUser
-                }
-            })
-            .commit()
-
-        // Optional: User deaktivieren wenn er keine anderen Rollen hat
-        const otherProjects = await writeClient.fetch(
-            `*[_type == "projekte" && $userId in users[]._ref && _id != $projectId][0]._id`,
-            {
-                userId: params.id,
-                projectId: project
-            }
-        )
-
-        if (!otherProjects) {
+        if (company) {
             await writeClient
-                .patch(params.id)
-                .set({ aktiv: false })
+                .patch(company)
+                .set({
+                    rechnungsempfaenger: {
+                        _ref: adminUser,
+                        _type: 'reference'
+                    }
+                })
                 .commit()
         }
 
+        // User deaktivieren statt löschen
+        await writeClient
+            .patch(params.id)
+            .set({ aktiv: false })
+            .commit()
+
         return NextResponse.json({ success: true })
     } catch (error) {
-        console.error('Fehler beim Löschen des Rechnungsempfängers:', error)
-        return new NextResponse(
-            'Fehler beim Löschen des Rechnungsempfängers',
+        console.error('Fehler beim Löschen:', error)
+        return NextResponse.json(
+            { message: 'Fehler beim Löschen des Rechnungsempfängers' },
             { status: 500 }
         )
     }

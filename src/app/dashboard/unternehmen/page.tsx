@@ -17,21 +17,19 @@ export default async function UnternehmenPage() {
     }
 
     try {
-        // Admin sieht alle Unternehmen, normale User nur ihre eigenen
-        const query = session.user.role === 'admin'
-            ? `*[_type == "projekte"][0]{
-                unternehmen->{
-                    _id,
-                    name,
-                    strasse,
-                    plz,
-                    ort,
-                    land,
-                    ustIdNr,
-                    telefon,
-                    email,
-                    webseite
-                },
+        // Wichtig: Die Query muss den richtigen Rechnungsempfänger finden
+        const query = `*[_type == "projekte" && $userId in users[]._ref][0]{
+            "company": unternehmen->{
+                _id,
+                name,
+                strasse,
+                plz,
+                ort,
+                land,
+                ustIdNr,
+                telefon,
+                email,
+                webseite,
                 rechnungsempfaenger->{
                     _id,
                     name,
@@ -41,34 +39,16 @@ export default async function UnternehmenPage() {
                     role,
                     aktiv
                 }
-            }.unternehmen`
-            : `*[_type == "projekte" && $userId in users[]._ref][0]{
-                unternehmen->{
-                    _id,
-                    name,
-                    strasse,
-                    plz,
-                    ort,
-                    land,
-                    ustIdNr,
-                    telefon,
-                    email,
-                    webseite
-                },
-                rechnungsempfaenger->{
-                    _id,
-                    name,
-                    email,
-                    telefon,
-                    position,
-                    role,
-                    aktiv
-                }
-            }.unternehmen`
+            }
+        }.company`
+
+        console.log('Executing query for user:', session.user.id, 'role:', session.user.role)
 
         const companyData = await writeClient.fetch(query, {
             userId: session.user.id
         })
+
+        console.log('Company data:', companyData)
 
         if (!companyData) {
             return (
@@ -79,31 +59,10 @@ export default async function UnternehmenPage() {
             )
         }
 
-        // Hole den Rechnungsempfänger für dieses Unternehmen
-        const recipientQuery = `*[_type == "projekte" && unternehmen._ref == $companyId][0].rechnungsempfaenger->{
-            _id,
-            name,
-            email,
-            telefon,
-            position,
-            role,
-            aktiv
-        }`
-
-        const rechnungsempfaenger = await writeClient.fetch(recipientQuery, {
-            companyId: companyData._id
-        })
-
-        // Füge den Rechnungsempfänger zu den Unternehmensdaten hinzu
-        const companyWithRecipient = {
-            ...companyData,
-            rechnungsempfaenger
-        }
-
         return (
             <div className="space-y-8">
                 <Heading>Unternehmen</Heading>
-                <CompanyContent initialData={companyWithRecipient} />
+                <CompanyContent initialData={companyData} />
             </div>
         )
     } catch (error) {

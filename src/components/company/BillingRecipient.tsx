@@ -1,3 +1,4 @@
+// src/components/company/BillingRecipient.tsx
 'use client'
 
 import { useState } from 'react'
@@ -14,13 +15,48 @@ interface BillingRecipientProps {
 }
 
 export function BillingRecipient({
-                                     companyId,
-                                     currentRecipient,
-                                     onRecipientCreated
-                                 }: BillingRecipientProps) {
+                                      companyId,
+                                      currentRecipient,
+                                      onRecipientCreated
+                                  }: BillingRecipientProps) {
     const [isEditing, setIsEditing] = useState(false)
+    const [isDeleting, setIsDeleting] = useState(false)
 
     const isAdminRecipient = currentRecipient?.role === 'admin'
+
+    const handleDelete = async () => {
+        if (!currentRecipient) return;
+
+        try {
+            setIsDeleting(true);
+            const sure = window.confirm(
+                'Möchten Sie wirklich den Rechnungsempfänger löschen? Der Admin wird temporär als Rechnungsempfänger eingesetzt.'
+            );
+
+            if (!sure) return;
+
+            const response = await fetch(`/api/company/billing-recipient/${currentRecipient._id}`, {
+                method: 'DELETE'
+            });
+
+            if (!response.ok) {
+                throw new Error('Fehler beim Löschen des Rechnungsempfängers');
+            }
+
+            showSuccessToast('Rechnungsempfänger wurde erfolgreich gelöscht');
+            if (onRecipientCreated) {
+                onRecipientCreated(undefined as any); // Trigger refresh
+            }
+        } catch (error) {
+            showErrorToast(
+                error instanceof Error
+                    ? error.message
+                    : 'Fehler beim Löschen des Rechnungsempfängers'
+            );
+        } finally {
+            setIsDeleting(false);
+        }
+    };
 
     const handleSubmit = async (formData: {
         name: string
@@ -29,7 +65,6 @@ export function BillingRecipient({
         position?: string
     }) => {
         try {
-            // Wenn kein currentRecipient oder Admin ist -> POST für neuen User
             const isNewUser = !currentRecipient || isAdminRecipient;
 
             const response = await fetch('/api/company/billing-recipient', {
@@ -38,14 +73,12 @@ export function BillingRecipient({
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify(isNewUser ? {
-                    // Für neue User
                     ...formData,
                     companyId
                 } : {
-                    // Für Update existierender User
                     ...formData,
                     companyId,
-                    userId: currentRecipient._id  // Hier senden wir die userId mit
+                    userId: currentRecipient._id
                 }),
             })
 
@@ -76,20 +109,33 @@ export function BillingRecipient({
         }
     }
 
+    console.log('BillingRecipient props:', { companyId, currentRecipient, isAdminRecipient });
+
     return (
         <Card className="p-6 space-y-6">
             <div className="flex justify-between items-center">
                 <div className="text-lg font-medium">
                     {isAdminRecipient ? 'Rechnungsempfänger festlegen' : 'Rechnungsempfänger'}
                 </div>
-                {!isEditing && (
-                    <Button
-                        onClick={() => setIsEditing(true)}
-                        className="text-white"
-                    >
-                        {isAdminRecipient ? 'Rechnungsempfänger anlegen' : 'Bearbeiten'}
-                    </Button>
-                )}
+                <div className="flex gap-2">
+                    {!isEditing && !isAdminRecipient && currentRecipient && (
+                        <Button
+                            onClick={handleDelete}
+                            disabled={isDeleting}
+                            className="bg-red-600 hover:bg-red-700 text-white"
+                        >
+                            {isDeleting ? 'Wird gelöscht...' : 'Löschen'}
+                        </Button>
+                    )}
+                    {!isEditing && (
+                        <Button
+                            onClick={() => setIsEditing(true)}
+                            className="text-white"
+                        >
+                            {isAdminRecipient ? 'Rechnungsempfänger anlegen' : 'Bearbeiten'}
+                        </Button>
+                    )}
+                </div>
             </div>
 
             <div>

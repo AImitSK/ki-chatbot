@@ -137,7 +137,7 @@ export const ApplicationLayout = memo(function ApplicationLayout({ children }: A
 
               <SidebarBody>
                 <SidebarSection>
-                  <SidebarItem href="/" current={pathname === '/'}>
+                  <SidebarItem href="/dashboard" current={pathname.startsWith('/dashboard')}>
                     <HomeIcon />
                     <SidebarLabel>Dashboard</SidebarLabel>
                   </SidebarItem>

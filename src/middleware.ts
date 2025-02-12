@@ -8,8 +8,14 @@ export default withAuth({
             if (req.nextUrl.pathname.startsWith('/dashboard/unternehmen/verify-billing')) {
                 return true
             }
+
             // Für alle anderen geschützten Routen Token prüfen
-            return !!token
+            if (req.nextUrl.pathname.startsWith('/dashboard') ||
+                req.nextUrl.pathname.startsWith('/api/projects')) {
+                return !!token
+            }
+
+            return true
         },
     },
 })
@@ -18,5 +24,6 @@ export const config = {
     matcher: [
         '/dashboard/:path*',
         '/api/user/:path*',
+        '/api/projects/:path*',
     ],
 }

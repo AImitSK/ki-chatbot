@@ -3,6 +3,17 @@ import { NextResponse } from 'next/server'
 import { writeClient } from '@/lib/sanity/client'
 import bcrypt from 'bcryptjs'
 
+interface UserReference {
+    _ref: string;
+    _type: 'reference';
+    _key?: string;
+}
+
+interface Project {
+    _id: string;
+    users?: UserReference[];
+}
+
 export async function POST(req: Request) {
     try {
         const { token } = await req.json()
@@ -26,7 +37,7 @@ export async function POST(req: Request) {
 
         // 2. Hole oder erstelle User
         const hashedPassword = await bcrypt.hash(invite.tempPassword, 10)
-        let userId
+        let userId: string
 
         const existingUser = await writeClient.fetch(
             `*[_type == "user" && email == $email][0]`,
@@ -68,7 +79,7 @@ export async function POST(req: Request) {
         }
 
         // 3. Hole das zugehörige Projekt
-        const project = await writeClient.fetch(`
+        const project = await writeClient.fetch<Project>(`
             *[_type == "projekte" && unternehmen._ref == $companyId][0]
         `, { companyId: invite.companyId })
 
@@ -90,7 +101,7 @@ export async function POST(req: Request) {
 
         // 5. Füge User zum Projekt hinzu
         const existingUsers = project.users || []
-        const userRefs = existingUsers.map(u => u._ref)
+        const userRefs = existingUsers.map((u: UserReference) => u._ref)
 
         if (!userRefs.includes(userId)) {
             await writeClient
