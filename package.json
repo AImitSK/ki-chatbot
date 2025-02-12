@@ -10,7 +10,7 @@
     "create-user": "tsx src/scripts/create-test-user.ts"
   },
   "dependencies": {
-    "@botpress/client": "^0.41.0",
+    "@botpress/client": "^0.41.2",
     "@headlessui/react": "^2.0.0",
     "@heroicons/react": "^2.0.18",
     "@hookform/resolvers": "^3.10.0",
