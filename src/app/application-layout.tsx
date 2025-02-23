@@ -28,6 +28,7 @@ import {
   LightBulbIcon,
   ShieldCheckIcon,
   UserCircleIcon,
+  ChatBubbleLeftRightIcon,
 } from '@heroicons/react/16/solid'
 import {
   HomeIcon,
@@ -137,9 +138,13 @@ export const ApplicationLayout = memo(function ApplicationLayout({ children }: A
 
               <SidebarBody>
                 <SidebarSection>
-                  <SidebarItem href="/dashboard" current={pathname.startsWith('/dashboard')}>
+                  <SidebarItem href="/dashboard" current={pathname === '/dashboard'}>
                     <HomeIcon />
                     <SidebarLabel>Dashboard</SidebarLabel>
+                  </SidebarItem>
+                  <SidebarItem href="/dashboard/conversations" current={pathname.startsWith('/dashboard/conversations')}>
+                    <ChatBubbleLeftRightIcon />
+                    <SidebarLabel>Konversationen</SidebarLabel>
                   </SidebarItem>
                   <SidebarItem href="/dashboard/profil" current={pathname.startsWith('/dashboard/profil')}>
                     <UserCircleIcon />

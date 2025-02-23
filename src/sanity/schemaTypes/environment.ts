@@ -12,22 +12,6 @@ export const environmentSchema = defineType({
             name: 'botId',
             title: 'NEXT_PUBLIC_BOTPRESS_BOT_ID',
             type: 'string',
-            validation: Rule => Rule
-                .required()
-                .min(10)
-                .custom<string>((botId, context: ValidationContext) => {
-                    if (!botId) return true
-
-                    const client = context.getClient({apiVersion: '2024-01-29'})
-                    return client.fetch(`
-                        *[_type == "environment" && botId == $botId && _id != $id][0]
-                    `, {
-                        botId,
-                        id: context.document?._id
-                    }).then(existingBot => {
-                        return existingBot ? 'Diese Bot-ID wird bereits verwendet' : true
-                    })
-                }),
             description: 'Die Bot-ID aus dem Botpress Dashboard'
         }),
         defineField({
