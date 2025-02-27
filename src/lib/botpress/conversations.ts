@@ -51,7 +51,8 @@ interface BotpressResponse {
     conversations?: BotpressConversation[]
     messages?: BotpressMessage[]
     meta?: {
-        total: number
+        nextToken?: string
+        total?: number
     }
     total?: number
 }
@@ -65,32 +66,25 @@ export class BotpressClient {
 
     async listConversations({ limit = 20, offset = 0 }) {
         try {
-            // 1. Erst alle Bots für den Workspace holen
-            const botsResponse = await fetch(
-                `https://api.botpress.cloud/v1/admin/bots`,
-                {
-                    headers: {
-                        'Authorization': `Bearer ${this.config.token}`,
-                        'x-workspace-id': this.config.workspaceId
-                    }
-                }
-            );
+            // Korrekter Endpunkt laut Botpress Feedback
+            const url = `https://api.botpress.cloud/v1/chat/conversations`;
 
-            console.log('Bots Response:', await botsResponse.json());
+            // Pagination-Token für Offset-basierte Paginierung
+            let paginationUrl = url;
+            if (offset > 0 && offset > limit) {
+                // In einer echten Implementierung müsstest du hier das nextToken
+                // aus der vorherigen Abfrage verwenden
+                paginationUrl = `${url}?nextToken=some_token`;
+            }
 
-            // Wenn wir die Bot-UUID haben, dann die Konversationen holen
-            const url = new URL('https://api.botpress.cloud/v1/chat/conversations');
-            url.searchParams.append('botId', this.config.botId);
-            url.searchParams.append('limit', limit.toString());
-            url.searchParams.append('offset', offset.toString());
+            console.log('Requesting URL:', paginationUrl);
 
-            console.log('Requesting URL:', url.toString());
-
-            const response = await fetch(url, {
+            const response = await fetch(paginationUrl, {
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${this.config.token}`,
-                    'x-workspace-id': this.config.workspaceId
+                    'x-bot-id': this.config.botId,
+                    'Accept': 'application/json'
                 }
             });
 
@@ -98,79 +92,81 @@ export class BotpressClient {
                 console.error('Error details:', {
                     status: response.status,
                     statusText: response.statusText,
-                    url: url.toString(),
+                    url: paginationUrl,
                     headers: Object.fromEntries(response.headers),
                     error: await response.text()
                 });
                 throw new Error(`API returned ${response.status}`);
             }
 
-            const data = await response.json();
+            const data: BotpressResponse = await response.json();
             console.log('API Response data:', data);
 
             return {
                 conversations: data.conversations || [],
-                totalCount: data.total || 0
+                totalCount: data.meta?.total || data.conversations?.length || 0,
+                nextToken: data.meta?.nextToken
             };
         } catch (error) {
             console.error('Complete error details:', error);
             const mockData = generateMockConversations(limit + offset);
             return {
                 conversations: mockData.slice(offset, offset + limit),
-                totalCount: mockData.length
+                totalCount: mockData.length,
+                nextToken: null
             };
         }
-    
     }
 
     async listMessages(conversationId: string) {
         try {
-            console.log('Fetching messages for conversation:', conversationId)
+            console.log('Fetching messages for conversation:', conversationId);
 
-            const response = await fetch(
-                `https://api.botpress.cloud/v1/chat/messages?` +
-                `conversationId=${conversationId}&` +
-                `botId=${this.config.botId}`,
-                {
-                    headers: {
-                        'Authorization': `Bearer ${this.config.token}`,
-                        'Accept': 'application/json',
-                        'x-workspace-id': this.config.workspaceId
-                    }
+            // Korrekter Endpunkt für Messages
+            const url = `https://api.botpress.cloud/v1/chat/messages?conversationId=${conversationId}`;
+
+            console.log('Requesting URL:', url);
+
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${this.config.token}`,
+                    'x-bot-id': this.config.botId,
+                    'Accept': 'application/json'
                 }
-            )
+            });
 
             if (!response.ok) {
-                const errorText = await response.text()
+                const errorText = await response.text();
                 console.error('API Response:', {
                     status: response.status,
                     statusText: response.statusText,
                     error: errorText,
                     url: response.url
-                })
-                throw new Error(`API returned ${response.status}: ${errorText}`)
+                });
+                throw new Error(`API returned ${response.status}: ${errorText}`);
             }
 
-            const data: BotpressResponse = await response.json()
-            console.log('Messages response data:', data)
+            const data: BotpressResponse = await response.json();
+            console.log('Messages response data:', data);
 
             return (data.messages || []).map((msg: BotpressMessage) => ({
                 id: msg.id,
                 content: msg.payload?.text || msg.text || '',
                 sender: msg.direction === 'incoming' ? 'user' : 'bot',
                 timestamp: msg.createdAt
-            }))
+            }));
         } catch (error) {
-            console.error('Error fetching messages:', error)
-            return generateMockMessages(conversationId)
+            console.error('Error fetching messages:', error);
+            return generateMockMessages(conversationId);
         }
     }
 }
 
 function generateMockConversations(limit: number = 20): Conversation[] {
     return Array.from({ length: limit }, (_, i) => {
-        const date = new Date()
-        date.setHours(date.getHours() - i)
+        const date = new Date();
+        date.setHours(date.getHours() - i);
         return {
             id: `conv_${Math.random().toString(36).substr(2, 9)}`,
             lastMessage: {
@@ -179,26 +175,26 @@ function generateMockConversations(limit: number = 20): Conversation[] {
             createdAt: new Date(date.setHours(date.getHours() - Math.random() * 24)).toISOString(),
             updatedAt: date.toISOString(),
             participantName: `Besucher ${i + 1}`
-        }
-    })
+        };
+    });
 }
 
 function generateMockMessages(conversationId: string): Message[] {
-    const messageCount = Math.floor(Math.random() * 10) + 5
-    const messages: Message[] = []
-    let date = new Date()
+    const messageCount = Math.floor(Math.random() * 10) + 5;
+    const messages: Message[] = [];
+    let date = new Date();
 
     for (let i = 0; i < messageCount; i++) {
-        date = new Date(date.getTime() - Math.random() * 1000 * 60 * 10)
+        date = new Date(date.getTime() - Math.random() * 1000 * 60 * 10);
         messages.push({
             id: `msg_${Math.random().toString(36).substr(2, 9)}`,
             content: `Test Nachricht ${i + 1} in Konversation ${conversationId}`,
             sender: i % 2 === 0 ? 'user' : 'bot',
             timestamp: date.toISOString()
-        })
+        });
     }
 
-    return messages.reverse()
+    return messages.reverse();
 }
 
 export async function getBotpressClient(projectId: string): Promise<BotpressClient> {
@@ -208,13 +204,13 @@ export async function getBotpressClient(projectId: string): Promise<BotpressClie
             token,
             workspaceId
         }
-    }`
+    }`;
 
-    const project = await sanityClient.fetch(envQuery, { projectId })
+    const project = await sanityClient.fetch(envQuery, { projectId });
 
     if (!project?.environment) {
-        throw new Error('No environment found for project')
+        throw new Error('No environment found for project');
     }
 
-    return new BotpressClient(project.environment)
+    return new BotpressClient(project.environment);
 }
