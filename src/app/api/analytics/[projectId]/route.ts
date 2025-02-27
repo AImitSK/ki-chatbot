@@ -5,6 +5,39 @@ import { sanityClient } from '@/lib/sanity/client';
 import { getBotpressClient } from '@/lib/botpress/conversations';
 import { format, parseISO, subMonths, startOfMonth, endOfMonth } from 'date-fns';
 
+interface BotEvent {
+    timestamp: string;
+    eventType: string;
+    payload: {
+        user?: {
+            id?: string;
+        };
+        message?: {
+            direction?: string;
+        };
+        tokens?: number;
+        cost?: number;
+    };
+}
+
+interface DailyStatsItem {
+    date: string;
+    messageCount: number;
+    botMessageCount: number;
+    userMessageCount: number;
+    userCount: number;
+    newUserCount: number;
+    conversationCount: number;
+    llmCallCount: number;
+    llmErrorCount: number;
+    tokenUsage: number;
+    cost: number;
+}
+
+interface DailyStatsMap {
+    [key: string]: DailyStatsItem;
+}
+
 async function checkProjectAccess(userId: string, projectId: string): Promise<boolean> {
     const result = await sanityClient.fetch(`
     *[_type == "projekte" && _id == $projectId][0] {
@@ -96,16 +129,16 @@ export async function GET(
 
         const client = await getBotpressClient(params.projectId);
 
-        // Aus Botpress-API die Gesprächsdaten holen
-        const conversationsData = await client.listConversations({
-            limit: 1000, // Höheres Limit für umfassendere Daten
+        // Botpress Conversations für den angegebenen Zeitraum abrufen
+        // Da bei client.listConversations die Typendefinition keine startDate/endDate akzeptiert,
+        // erstellen wir ein erweitertes Objekt und casten es zum erwarteten Typ
+        const conversationsParams: any = {
+            limit: 1000,
             startDate: startDate.toISOString(),
             endDate: endDate.toISOString()
-        });
+        };
 
-        // Botpress Stats für Messager und User abrufen
-        const botpressStats = await fetch(`/api/stats/${params.projectId}?days=30`);
-        const statsData = await botpressStats.json();
+        const conversationsData = await client.listConversations(conversationsParams);
 
         // Bot Events aus Sanity holen (für Token-Nutzung und Kosten)
         const botEvents = await sanityClient.fetch(`
@@ -126,13 +159,13 @@ export async function GET(
         });
 
         // Daten aggregieren und aufbereiten
-        const dailyStats = [];
-        const dailyData = {};
-        const userMap = new Set();
-        const newUserMap = new Set();
+        const dailyStats: DailyStatsItem[] = [];
+        const dailyData: DailyStatsMap = {};
+        const userMap = new Set<string>();
+        const newUserMap = new Set<string>();
 
         // Bot-Events verarbeiten
-        botEvents.forEach(event => {
+        (botEvents as BotEvent[]).forEach(event => {
             const date = format(new Date(event.timestamp), 'yyyy-MM-dd');
 
             if (!dailyData[date]) {
@@ -155,18 +188,23 @@ export async function GET(
             switch (event.eventType) {
                 case 'message.received':
                     if (event.payload.user?.id) {
-                        if (!userMap.has(event.payload.user.id)) {
-                            userMap.add(event.payload.user.id);
-                            newUserMap.add(event.payload.user.id);
+                        const userId = event.payload.user.id;
+                        if (!userMap.has(userId)) {
+                            userMap.add(userId);
+                            newUserMap.add(userId);
                             dailyData[date].newUserCount++;
                         }
-                        dailyData[date].userCount = new Set([...userMap].filter(id =>
-                            botEvents.some(e =>
-                                e.eventType === 'message.received' &&
-                                e.payload.user?.id === id &&
-                                format(new Date(e.timestamp), 'yyyy-MM-dd') === date
-                            )
-                        )).size;
+
+                        // Zähle Benutzer pro Tag
+                        const dailyUsers = new Set<string>();
+                        (botEvents as BotEvent[]).forEach(e => {
+                            if (e.eventType === 'message.received' &&
+                                e.payload.user?.id &&
+                                format(new Date(e.timestamp), 'yyyy-MM-dd') === date) {
+                                dailyUsers.add(e.payload.user.id);
+                            }
+                        });
+                        dailyData[date].userCount = dailyUsers.size;
                     }
 
                     if (event.payload.message?.direction === 'incoming') {
@@ -199,15 +237,37 @@ export async function GET(
             dailyStats.push(day);
         });
 
+        // Sortiere die täglichen Daten nach Datum
+        dailyStats.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
         // Zusammenfassung der Daten berechnen
         const totalStats = {
             totalUsers: userMap.size,
             newUsers: newUserMap.size,
-            totalMessages: dailyStats.reduce((sum, day: any) => sum + (day.messageCount || 0), 0),
-            botMessages: dailyStats.reduce((sum, day: any) => sum + (day.botMessageCount || 0), 0),
-            userMessages: dailyStats.reduce((sum, day: any) => sum + (day.userMessageCount || 0), 0),
-            totalConversations: dailyStats.reduce((sum, day: any) => sum + (day.conversationCount || 0), 0),
-            totalTokens: dailyStats.reduce((sum, day: any) => sum + (day.tokenUsage || 0), 0),
-            totalCost: dailyStats.reduce((sum, day: any) => sum + (day.cost || 0), 0),
-            totalLlmCalls: dailyStats.reduce((sum, day: any) => sum + (day.llmCallCount || 0), 0),
-            totalLlmErrors: dailyStats.
+            totalMessages: dailyStats.reduce((sum, day) => sum + (day.messageCount || 0), 0),
+            botMessages: dailyStats.reduce((sum, day) => sum + (day.botMessageCount || 0), 0),
+            userMessages: dailyStats.reduce((sum, day) => sum + (day.userMessageCount || 0), 0),
+            totalConversations: dailyStats.reduce((sum, day) => sum + (day.conversationCount || 0), 0),
+            totalTokens: dailyStats.reduce((sum, day) => sum + (day.tokenUsage || 0), 0),
+            totalCost: dailyStats.reduce((sum, day) => sum + (day.cost || 0), 0),
+            totalLlmCalls: dailyStats.reduce((sum, day) => sum + (day.llmCallCount || 0), 0),
+            totalLlmErrors: dailyStats.reduce((sum, day) => sum + (day.llmErrorCount || 0), 0)
+        };
+
+        // Antwort mit allen Daten zurückgeben
+        return NextResponse.json({
+            data: {
+                dailyStats,
+                totalStats,
+                aiSpendLimit: projectData.aiSpendLimit || 0
+            }
+        });
+
+    } catch (error) {
+        console.error('Error in analytics API:', error);
+        return NextResponse.json(
+            { error: 'Internal Server Error', details: error instanceof Error ? error.message : 'Unknown error' },
+            { status: 500 }
+        );
+    }
+}
