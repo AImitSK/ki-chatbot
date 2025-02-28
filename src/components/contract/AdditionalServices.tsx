@@ -5,14 +5,6 @@ import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/badge'
 import { Text, Strong } from '@/components/ui/text'
 import { Subheading } from '@/components/ui/heading'
-import {
-    Table,
-    TableHeader,
-    TableBody,
-    TableRow,
-    TableHead,
-    TableCell
-} from '@/components/ui/table'
 import { useEffect, useState } from 'react'
 
 interface AdditionalServicesProps {
@@ -42,49 +34,46 @@ export default function AdditionalServices({ contractData }: AdditionalServicesP
 
                 {/* Render nur auf der Client-Seite, nachdem Hydration abgeschlossen ist */}
                 {isClient && (
-                    <div>
+                    <>
                         {zusatzleistungen.length === 0 ? (
                             <Text>
                                 Aktuell sind keine Zusatzleistungen gebucht. Bei Bedarf kontaktieren Sie bitte unser Support-Team.
                             </Text>
                         ) : (
                             <div className="overflow-x-auto">
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>Leistung</TableHead>
-                                            <TableHead>Kategorie</TableHead>
-                                            <TableHead>Typ</TableHead>
-                                            <TableHead className="text-right">Preis</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {zusatzleistungen.map((service: any) => (
-                                            <TableRow key={service._id}>
-                                                <TableCell>
-                                                    <Strong>{service.leistung}</Strong>
-                                                    {service.beschreibung && (
-                                                        <div className="text-xs text-gray-500 mt-1">{service.beschreibung}</div>
-                                                    )}
-                                                </TableCell>
-                                                <TableCell>
-                                                    <Badge color={getBadgeColorForCategory(service.kategorie || 'other')}>
-                                                        {getKategorieLabel(service.kategorie || 'other')}
-                                                    </Badge>
-                                                </TableCell>
-                                                <TableCell>
-                                                    {service.einmalig ? 'Einmalig' : 'Wiederkehrend'}
-                                                </TableCell>
-                                                <TableCell className="text-right">
-                                                    {typeof service.preis === 'number' ? `${service.preis.toFixed(2)}€` : '-'}
-                                                </TableCell>
-                                            </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
+                                {/* Tabellen-Header */}
+                                <div className="grid grid-cols-4 bg-gray-50 dark:bg-gray-800 rounded-t-md border-b border-gray-200 dark:border-gray-700">
+                                    <div className="p-3 font-medium text-gray-700 dark:text-gray-300">Leistung</div>
+                                    <div className="p-3 font-medium text-gray-700 dark:text-gray-300">Kategorie</div>
+                                    <div className="p-3 font-medium text-gray-700 dark:text-gray-300">Typ</div>
+                                    <div className="p-3 font-medium text-gray-700 dark:text-gray-300 text-right">Preis</div>
+                                </div>
+
+                                {/* Tabellen-Zeilen */}
+                                {zusatzleistungen.map((service, index) => (
+                                    <div key={service._id || index} className="grid grid-cols-4 border-b border-gray-200 dark:border-gray-700">
+                                        <div className="p-3">
+                                            <Strong>{service.leistung || 'Nicht angegeben'}</Strong>
+                                            {service.beschreibung && (
+                                                <div className="text-xs text-gray-500 mt-1">{service.beschreibung}</div>
+                                            )}
+                                        </div>
+                                        <div className="p-3">
+                                            <Badge color={getBadgeColorForCategory(service.kategorie || 'other')}>
+                                                {getKategorieLabel(service.kategorie || 'other')}
+                                            </Badge>
+                                        </div>
+                                        <div className="p-3">
+                                            {service.einmalig ? 'Einmalig' : 'Wiederkehrend'}
+                                        </div>
+                                        <div className="p-3 text-right">
+                                            {typeof service.preis === 'number' ? `${service.preis.toFixed(2)}€` : '-'}
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
                         )}
-                    </div>
+                    </>
                 )}
 
                 {/* Zeige Ladeanzeige, bis Client-Rendering aktiviert ist */}

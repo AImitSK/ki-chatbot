@@ -1,4 +1,4 @@
-// src/sanity/schemaTypes/index.ts
+// src/sanity/schemaTypes/index.ts - Updated
 import { environmentSchema } from './environment'
 import { projektSchema } from './projekte'
 import { userSchema } from './user'
@@ -8,6 +8,7 @@ import { zusatzleistungenSchema } from './zusatzleistungen'
 import { rechnungenSchema } from './rechnungen'
 import { emailVerificationSchema } from './emailVerification'
 import { activityLogSchema } from './activityLog'
+import { vertragsdokumenteSchema } from './vertragsdokumente'  // Neu importiert
 
 // Schema Types Array für Sanity Konfiguration
 // Reihenfolge ist wichtig: Basis-Schemas zuerst, dann abhängige Schemas
@@ -18,6 +19,7 @@ const schemaTypes = [
   environmentSchema,
   vertragsmodelleSchema,
   zusatzleistungenSchema,
+  vertragsdokumenteSchema, // Neue Schema-Referenz hinzugefügt
   projektSchema,
   rechnungenSchema,
   emailVerificationSchema,

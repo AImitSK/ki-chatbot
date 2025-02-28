@@ -1,4 +1,4 @@
-// src/sanity/structure.ts
+// src/sanity/structure.ts - Ergänzung
 import { StructureBuilder } from 'sanity/desk'
 import dynamic from 'next/dynamic'
 
@@ -49,6 +49,11 @@ export default function structureBuilder(S: StructureBuilder) {
                 .title('Rechnungen')
                 .schemaType('rechnungen')
                 .child(S.documentTypeList('rechnungen').title('Rechnungen')),
+
+            S.listItem()
+                .title('Vertragsdokumente')  // Neuer Eintrag
+                .schemaType('vertragsdokumente') // Neue Schema-Referenz
+                .child(S.documentTypeList('vertragsdokumente').title('Vertragsdokumente')),
 
             S.listItem()
                 .title('Environments')

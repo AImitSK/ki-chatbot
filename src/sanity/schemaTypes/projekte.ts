@@ -113,6 +113,25 @@ export const projektSchema = defineType({
             validation: Rule => Rule.min(Rule.valueOfField('vertragsbeginn'))
         }),
         defineField({
+            name: 'dokumente',
+            title: 'Vertragsdokumente',
+            description: 'Wichtige Dokumente zu diesem Vertrag',
+            type: 'array',
+            of: [{
+                type: 'reference',
+                to: [{ type: 'vertragsdokumente' }],
+                options: {
+                    filter: ({ document }) => {
+                        // Nur Dokumente zeigen, die aktiv sind
+                        return {
+                            filter: 'aktiv == true'
+                        }
+                    }
+                }
+            }],
+            validation: Rule => Rule.unique()
+        }),
+        defineField({
             name: 'aiSpendLimit',
             title: 'AI Spend-Limit',
             type: 'number',

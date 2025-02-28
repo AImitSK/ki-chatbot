@@ -4,38 +4,24 @@ import { Button } from '@/components/ui/button'
 import { Text, Strong } from '@/components/ui/text'
 import { Subheading } from '@/components/ui/heading'
 import Link from 'next/link'
+import { formatDate } from '@/lib/utils'
 
 interface ContractDocumentsProps {
     contractData: any
 }
 
 export default function ContractDocuments({ contractData }: ContractDocumentsProps) {
-    // In einer echten Implementierung würden die Dokumente aus Sanity kommen
-    // Beispielweise: contractData.dokumente
-    // Für jetzt verwenden wir Beispieldaten
-    const documents = [
-        {
-            id: '1',
-            name: 'Vertragsdokument.pdf',
-            url: '#',
-            type: 'Vertrag',
-            date: '01.01.2023'
-        },
-        {
-            id: '2',
-            name: 'AGB.pdf',
-            url: '#',
-            type: 'AGB',
-            date: '01.01.2023'
-        },
-        {
-            id: '3',
-            name: 'Datenschutzerklärung.pdf',
-            url: '#',
-            type: 'Datenschutz',
-            date: '01.01.2023'
-        }
-    ]
+    // Verwenden der Dokumente aus den Vertragsdaten, falls vorhanden
+    // Wenn nicht verfügbar, leeres Array verwenden
+    const documents = contractData?.dokumente?.length > 0
+        ? contractData.dokumente.map((doc: any) => ({
+            id: doc._id,
+            name: doc.name,
+            url: doc.datei?.asset?.url || '#',
+            type: getDocumentTypeLabel(doc.typ),
+            date: doc.erstellungsdatum ? formatDate(doc.erstellungsdatum) : ''
+        }))
+        : [];
 
     return (
         <Card>
@@ -45,11 +31,11 @@ export default function ContractDocuments({ contractData }: ContractDocumentsPro
 
                 {documents.length === 0 ? (
                     <Text>
-                        Keine Dokumente vorhanden.
+                        Aktuell sind keine Dokumente zu Ihrem Vertrag verfügbar.
                     </Text>
                 ) : (
                     <div className="space-y-4">
-                        {documents.map((doc) => (
+                        {documents.map((doc: any) => (
                             <div key={doc.id} className="flex items-center justify-between p-3 border rounded-md border-zinc-950/10 dark:border-white/10">
                                 <div className="flex items-center space-x-3">
                                     <svg
@@ -77,7 +63,7 @@ export default function ContractDocuments({ contractData }: ContractDocumentsPro
                                 </div>
 
                                 <Link href={doc.url} target="_blank" passHref>
-                                    <Button plain>
+                                    <Button color="blue">
                                         <svg
                                             xmlns="http://www.w3.org/2000/svg"
                                             className="h-4 w-4 mr-1"
@@ -104,12 +90,26 @@ export default function ContractDocuments({ contractData }: ContractDocumentsPro
                 <div className="mt-6">
                     <Subheading level={3}>Hinweis</Subheading>
                     <Text className="mt-2">
-                        Diese Dokumente sind derzeit statische Beispiele. In der finalen Version werden hier Ihre
-                        tatsächlichen Vertragsdokumente angezeigt, die automatisch aus dem Sanity CMS geladen werden.
-                        Sie werden automatisch aktualisiert, wenn sich Ihre Vertragsbedingungen ändern.
+                        Alle Vertragsdokumente werden in Ihrem Sanity CMS gespeichert und können bei Bedarf von Ihrem Account-Manager aktualisiert werden.
+                        Bei Fragen zu den Dokumenten wenden Sie sich bitte an Ihren Ansprechpartner.
                     </Text>
                 </div>
             </div>
         </Card>
     )
+}
+
+// Hilfsfunktion für die Anzeige des Dokumenttyps
+function getDocumentTypeLabel(type: string): string {
+    switch (type) {
+        case 'vertrag':
+            return 'Vertrag';
+        case 'agb':
+            return 'AGB';
+        case 'datenschutz':
+            return 'Datenschutzerklärung';
+        case 'sonstiges':
+        default:
+            return 'Dokument';
+    }
 }

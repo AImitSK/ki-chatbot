@@ -43,7 +43,6 @@ export default function ContractUpgrade({ contractData }: ContractUpgradeProps) 
                                     Support
                                 </Button>
                             </Link>
-
                             <Link href="https://sk-online-marketing.de/ki-chatbots/" target="_blank" passHref>
                                 <Button outline>
                                     <svg

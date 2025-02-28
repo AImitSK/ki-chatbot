@@ -51,7 +51,7 @@ export async function getContractData(userId: string) {
 
         console.log("Suche Vertragsdaten für Benutzer-ID:", userId);
 
-        // Direkt Projekte mit dem Benutzer als berechtigtem Benutzer suchen
+        // Erweiterte Abfrage mit Dokumenten
         const contractData = await client.fetch(`
             *[_type == "projekte" && $userId in users[]._ref][0] {
                 _id,
@@ -85,6 +85,19 @@ export async function getContractData(userId: string) {
                     preis,
                     kategorie,
                     einmalig
+                },
+                "dokumente": dokumente[]-> {
+                    _id,
+                    name,
+                    typ,
+                    erstellungsdatum,
+                    beschreibung,
+                    "datei": {
+                        "asset": datei.asset->{
+                            _id,
+                            "url": url
+                        }
+                    }
                 },
                 notizen
             }
@@ -161,6 +174,61 @@ export async function getAdditionalServices(contractId: string) {
         return additionalServices?.zusatzleistungen || [];
     } catch (error) {
         console.error('Fehler beim Abrufen der Zusatzleistungen:', error);
+        return [];
+    }
+}
+
+// Funktion für Vertragsdokumente
+export async function getContractDocuments(projectId: string) {
+    try {
+        if (!projectId) {
+            console.error("getContractDocuments: projectId ist undefined oder leer");
+            return [];
+        }
+
+        // 1. Variante: Dokumente über direkte Referenz im Projekt abrufen
+        const documents = await client.fetch(`
+            *[_type == "projekte" && _id == $projectId][0] {
+                "dokumente": dokumente[]-> {
+                    _id,
+                    name,
+                    typ,
+                    erstellungsdatum,
+                    beschreibung,
+                    "datei": {
+                        "asset": datei.asset->{
+                            _id,
+                            "url": url
+                        }
+                    }
+                }
+            }
+        `, { projectId });
+
+        // 2. Alternative: Dokumente über Referenz von Dokumenten zum Projekt abrufen
+        if (!documents?.dokumente || documents.dokumente.length === 0) {
+            const altDocuments = await client.fetch(`
+                *[_type == "vertragsdokumente" && projekt._ref == $projectId && aktiv == true] {
+                    _id,
+                    name,
+                    typ,
+                    erstellungsdatum,
+                    beschreibung,
+                    "datei": {
+                        "asset": datei.asset->{
+                            _id,
+                            "url": url
+                        }
+                    }
+                }
+            `, { projectId });
+
+            return altDocuments || [];
+        }
+
+        return documents.dokumente || [];
+    } catch (error) {
+        console.error('Fehler beim Abrufen der Vertragsdokumente:', error);
         return [];
     }
 }
