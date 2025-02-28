@@ -10,8 +10,8 @@ import { sanityClient } from '@/lib/sanity/client'
 // Standardimporte für Komponenten
 import ContractOverview from '@/components/contract/ContractOverview'
 import AdditionalServices from '@/components/contract/AdditionalServices'
-import InvoiceList from '@/components/contract/InvoiceList'
 import ContractDocuments from '@/components/contract/ContractDocuments'
+import ContractUpgrade from '@/components/contract/ContractUpgrade'
 
 export default async function VertragPage() {
     // Session prüfen
@@ -72,13 +72,13 @@ export default async function VertragPage() {
 
                 <AdditionalServices contractData={contractData} />
 
-                <InvoiceList projectId={contractData?.projekt?._id} />
-
                 <ContractDocuments contractData={contractData} />
+
+                <ContractUpgrade contractData={contractData} />
             </div>
         )
     } catch (error) {
-        console.error('Fehler beim Laden der Vertragsdaten:', error)
+        console.error('Fehler beim Laden der Vertragsdaten:', error);
         return (
             <div className="space-y-8">
                 <Heading>Vertragsinformationen</Heading>

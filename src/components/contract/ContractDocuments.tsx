@@ -10,7 +10,9 @@ interface ContractDocumentsProps {
 }
 
 export default function ContractDocuments({ contractData }: ContractDocumentsProps) {
-    // Beispiel-Dokumente, die in einer echten Implementierung aus den Vertragsdaten kommen würden
+    // In einer echten Implementierung würden die Dokumente aus Sanity kommen
+    // Beispielweise: contractData.dokumente
+    // Für jetzt verwenden wir Beispieldaten
     const documents = [
         {
             id: '1',
@@ -102,8 +104,9 @@ export default function ContractDocuments({ contractData }: ContractDocumentsPro
                 <div className="mt-6">
                     <Subheading level={3}>Hinweis</Subheading>
                     <Text className="mt-2">
-                        Alle Dokumente werden automatisch aktualisiert, wenn sich Ihre Vertragsbedingungen ändern.
-                        Ältere Versionen von Dokumenten sind über die Versionsverwaltung einsehbar.
+                        Diese Dokumente sind derzeit statische Beispiele. In der finalen Version werden hier Ihre
+                        tatsächlichen Vertragsdokumente angezeigt, die automatisch aus dem Sanity CMS geladen werden.
+                        Sie werden automatisch aktualisiert, wenn sich Ihre Vertragsbedingungen ändern.
                     </Text>
                 </div>
             </div>

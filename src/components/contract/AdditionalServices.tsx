@@ -26,7 +26,11 @@ export default function AdditionalServices({ contractData }: AdditionalServicesP
 
     // Aktualisiere Zusatzleistungen nur auf der Client-Seite
     useEffect(() => {
-        setZusatzleistungen(contractData?.zusatzleistungen || []);
+        if (contractData?.zusatzleistungen && Array.isArray(contractData.zusatzleistungen)) {
+            setZusatzleistungen(contractData.zusatzleistungen);
+        } else {
+            setZusatzleistungen([]);
+        }
         setIsClient(true);
     }, [contractData]);
 
@@ -44,7 +48,7 @@ export default function AdditionalServices({ contractData }: AdditionalServicesP
                                 Aktuell sind keine Zusatzleistungen gebucht. Bei Bedarf kontaktieren Sie bitte unser Support-Team.
                             </Text>
                         ) : (
-                            <div className="overflow-auto">
+                            <div className="overflow-x-auto">
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
@@ -64,15 +68,15 @@ export default function AdditionalServices({ contractData }: AdditionalServicesP
                                                     )}
                                                 </TableCell>
                                                 <TableCell>
-                                                    <Badge color={getBadgeColorForCategory(service.kategorie)}>
-                                                        {getKategorieLabel(service.kategorie)}
+                                                    <Badge color={getBadgeColorForCategory(service.kategorie || 'other')}>
+                                                        {getKategorieLabel(service.kategorie || 'other')}
                                                     </Badge>
                                                 </TableCell>
                                                 <TableCell>
                                                     {service.einmalig ? 'Einmalig' : 'Wiederkehrend'}
                                                 </TableCell>
                                                 <TableCell className="text-right">
-                                                    {service.preis ? `${service.preis.toFixed(2)}€` : '-'}
+                                                    {typeof service.preis === 'number' ? `${service.preis.toFixed(2)}€` : '-'}
                                                 </TableCell>
                                             </TableRow>
                                         ))}
