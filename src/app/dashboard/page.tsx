@@ -19,7 +19,7 @@ export default async function DashboardPage() {
                 <div className="p-6">
                     <h1 className="text-2xl font-bold">Nicht angemeldet</h1>
                     <p className="mt-2">Bitte melden Sie sich an, um fortzufahren.</p>
-                    <pre className="mt-4 p-4 bg-gray-100 rounded">
+                    <pre className="mt-4 p-4 bg-gray-100 rounded hidden">
                         {debugOutput.join('\n')}
                     </pre>
                 </div>
@@ -45,7 +45,7 @@ export default async function DashboardPage() {
             return (
                 <div className="p-6">
                     <p>Weiterleitung...</p>
-                    <pre className="mt-4 p-4 bg-gray-100 rounded">
+                    <pre className="mt-4 p-4 bg-gray-100 rounded hidden">
                         {debugOutput.join('\n')}
                     </pre>
                     <script
@@ -63,11 +63,11 @@ export default async function DashboardPage() {
             <div className="p-6">
                 <h1 className="text-2xl font-bold">Kein Projekt gefunden</h1>
                 <p className="mt-2">Es wurde kein aktives Projekt gefunden.</p>
-                <pre className="mt-4 p-4 bg-gray-100 rounded">
+                <pre className="mt-4 p-4 bg-gray-100 rounded hidden">
                     {debugOutput.join('\n')}
                 </pre>
                 {project && (
-                    <div className="mt-4 p-4 bg-gray-50 rounded">
+                    <div className="mt-4 p-4 bg-gray-50 rounded hidden">
                         <h2 className="font-semibold">Projekt-Details:</h2>
                         <pre className="mt-2 text-sm">
                             {JSON.stringify(project, null, 2)}
@@ -84,7 +84,7 @@ export default async function DashboardPage() {
             <div className="p-6">
                 <h1 className="text-2xl font-bold text-red-600">Fehler beim Laden</h1>
                 <p className="mt-2">Ein Fehler ist aufgetreten beim Laden der Seite.</p>
-                <pre className="mt-4 p-4 bg-gray-100 rounded">
+                <pre className="mt-4 p-4 bg-gray-100 rounded hidden">
                     {debugOutput.join('\n')}
                 </pre>
             </div>

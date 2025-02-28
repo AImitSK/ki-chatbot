@@ -47,3 +47,32 @@ body {
 .dropdown-icon {
   @apply w-4 h-4;
 }
+
+/* Hintergrundfarben-Überschreibungen */
+.bg-card {
+  background-color: #ffffff;
+}
+
+/* Überschreibe den SidebarLayout-Hintergrund */
+[data-catalyst-layout="sidebar"] > div:first-child,
+div[class*="SidebarLayout_container"] {
+  background-color: #ffffff !important;
+}
+
+/* Überschreibe Tailwind's graue Hintergründe */
+.bg-gray-50,
+.bg-gray-100,
+.bg-gray-200,
+.bg-zinc-50,
+.bg-zinc-100,
+.bg-slate-50,
+.bg-slate-100,
+.bg-white\/50 {
+  background-color: #ffffff !important;
+}
+
+/* Main-Bereich im Dashboard */
+main,
+div[class*="SidebarLayout_main"] {
+  background-color: #ffffff !important;
+}

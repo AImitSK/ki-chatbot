@@ -15,9 +15,9 @@ export default async function DashboardLayout({
     }
 
     return (
-        <>
+        <div className="bg-white">
             {children}
             <Toaster position="top-right" />
-        </>
+        </div>
     )
 }
