@@ -1,13 +1,47 @@
 // src/components/support/SupportTickets.tsx
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { MailIcon, TicketIcon, ClockIcon, CheckCircleIcon, XCircleIcon, SendIcon } from 'lucide-react'
-import { formatDate } from '@/lib/utils'
+import { TicketIcon, ClockIcon, CheckCircleIcon, SendIcon, InfoIcon, FileIcon, LoaderIcon } from 'lucide-react'
+import { useSession } from 'next-auth/react'
+import { useToast } from '@/hooks/useToast'
+
+// Typdefinitionen
+interface Ticket {
+    _id: string;
+    ticketNumber: string;
+    subject: string;
+    status: 'open' | 'in_progress' | 'pending_customer' | 'closed';
+    priority: 'low' | 'medium' | 'high';
+    createdAt: string;
+    updatedAt: string;
+    project?: string;
+    messages: TicketMessage[];
+}
+
+interface TicketMessage {
+    sender: 'user' | 'support';
+    message: string;
+    timestamp: string;
+    senderName?: string;
+    attachments?: {
+        url: string;
+        filename: string;
+    }[];
+}
+
+interface TicketDetailResponse {
+    ticket: Ticket;
+    success: boolean;
+}
+
+interface TicketsResponse {
+    tickets: Ticket[];
+}
 
 // Benutzerdefinierte minimale UI-Komponenten
 function Label({ htmlFor, children }: { htmlFor: string, children: React.ReactNode }) {
@@ -26,7 +60,54 @@ function Badge({ children, className = "" }: { children: React.ReactNode, classN
     );
 }
 
-// Einfache Tabs-Implementierung
+// Formatierungsfunktionen
+function formatDateTime(dateString: string) {
+    const date = new Date(dateString);
+    return new Intl.DateTimeFormat('de-DE', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    }).format(date);
+}
+
+// Status-Badge Styling
+function getStatusBadge(status: string) {
+    switch (status) {
+        case 'open':
+            return <Badge className="bg-blue-50 text-blue-700 border border-blue-200">Offen</Badge>
+        case 'in_progress':
+            return <Badge className="bg-yellow-50 text-yellow-700 border border-yellow-200">In Bearbeitung</Badge>
+        case 'pending_customer':
+            return <Badge className="bg-purple-50 text-purple-700 border border-purple-200">Wartend</Badge>
+        case 'closed':
+            return <Badge className="bg-green-50 text-green-700 border border-green-200">Abgeschlossen</Badge>
+        default:
+            return <Badge>{status}</Badge>
+    }
+}
+
+// Prioritäts-Badge Styling
+function getPriorityBadge(priority: string) {
+    switch (priority) {
+        case 'high':
+            return <Badge className="bg-red-50 text-red-700 border border-red-200">Hoch</Badge>
+        case 'medium':
+            return <Badge className="bg-yellow-50 text-yellow-700 border border-yellow-200">Mittel</Badge>
+        case 'low':
+            return <Badge className="bg-green-50 text-green-700 border border-green-200">Niedrig</Badge>
+        default:
+            return <Badge>{priority}</Badge>
+    }
+}
+
+// Tab content component
+function TabContent({ value, children, label }: { value: string, label?: string, children: React.ReactNode }) {
+    return <div>{children}</div>;
+}
+
+// Tabbed interface
 function SimpleTabs({ children, defaultTab }: { children: React.ReactNode, defaultTab: string }) {
     const [activeTab, setActiveTab] = useState(defaultTab);
 
@@ -37,7 +118,7 @@ function SimpleTabs({ children, defaultTab }: { children: React.ReactNode, defau
 
     // Extrahiere alle Tab-Trigger für die Navigation
     const tabTriggers = React.Children.toArray(children).map(child => {
-        if (React.isValidElement(child)) {
+        if (React.isValidElement(child) && child.props.label) {
             return (
                 <button
                     key={child.props.value}
@@ -61,145 +142,229 @@ function SimpleTabs({ children, defaultTab }: { children: React.ReactNode, defau
     );
 }
 
-// Tab content component
-function TabContent({ value, children }: { value: string, label?: string, children: React.ReactNode }) {
-    return <div>{children}</div>;
-}
-
-// Beispieldaten für vergangene Tickets
-const ticketHistory = [
-    {
-        id: 'TCK-2023-0012',
-        subject: 'Probleme bei der Chatbot-Integration',
-        status: 'closed',
-        priority: 'medium',
-        created: '2023-12-10T14:32:00',
-        updated: '2023-12-12T09:15:00',
-        messages: [
-            {
-                sender: 'user',
-                message: 'Ich habe Probleme bei der Integration des Chatbots auf unserer neuen Landing Page. Der Bot wird nicht angezeigt.',
-                timestamp: '2023-12-10T14:32:00'
-            },
-            {
-                sender: 'support',
-                message: 'Vielen Dank für Ihre Anfrage. Können Sie mir bitte mitteilen, welches CMS Sie verwenden und ob Sie das Script wie in der Dokumentation beschrieben eingebunden haben?',
-                timestamp: '2023-12-10T15:45:00'
-            },
-            {
-                sender: 'user',
-                message: 'Wir verwenden WordPress mit Elementor. Ich habe das Script im Footer-Bereich eingefügt, wie in der Dokumentation beschrieben.',
-                timestamp: '2023-12-11T10:23:00'
-            },
-            {
-                sender: 'support',
-                message: 'Vielen Dank für die Information. Das Problem könnte an einem Script-Blocker oder einem Konflikt mit anderen WordPress-Plugins liegen. Bitte versuchen Sie folgendes:\n\n1. Prüfen Sie die Browser-Konsole auf Fehlermeldungen\n2. Deaktivieren Sie temporär andere Plugins, um Konflikte auszuschließen\n3. Versuchen Sie die Integration über das "Header and Footer Scripts" Plugin\n\nBitte teilen Sie uns mit, ob einer dieser Schritte das Problem löst.',
-                timestamp: '2023-12-11T11:17:00'
-            },
-            {
-                sender: 'user',
-                message: 'Vielen Dank für die Tipps! Es war tatsächlich ein Konflikt mit einem Caching-Plugin. Nach der Deaktivierung funktioniert der Chatbot einwandfrei.',
-                timestamp: '2023-12-12T09:05:00'
-            },
-            {
-                sender: 'support',
-                message: 'Das freut mich zu hören! Falls Sie das Caching-Plugin weiterhin nutzen möchten, können Sie in den Einstellungen des Plugins bestimmte Scripts vom Caching ausschließen. Dafür fügen Sie einfach die Domain "cdn.botpress.cloud" zur Ausnahmeliste hinzu. Bei weiteren Fragen stehen wir Ihnen gerne zur Verfügung!',
-                timestamp: '2023-12-12T09:15:00'
-            }
-        ]
-    },
-    {
-        id: 'TCK-2024-0003',
-        subject: 'Frage zum AI Spend-Limit',
-        status: 'open',
-        priority: 'low',
-        created: '2024-01-15T10:42:00',
-        updated: '2024-01-15T11:30:00',
-        messages: [
-            {
-                sender: 'user',
-                message: 'Guten Tag, ich habe eine Frage zu meinem AI Spend-Limit. Wie kann ich sehen, wie viel davon bereits verbraucht wurde?',
-                timestamp: '2024-01-15T10:42:00'
-            },
-            {
-                sender: 'support',
-                message: 'Hallo! Vielen Dank für Ihre Anfrage. Sie können Ihren aktuellen AI Spend-Verbrauch im Dashboard unter dem Reiter "Statistiken" einsehen. Dort finden Sie ein Diagramm, das den monatlichen Verbrauch darstellt, sowie den aktuellen Stand in Relation zu Ihrem festgelegten Limit. Haben Sie diese Information gefunden oder benötigen Sie weitere Hilfe?',
-                timestamp: '2024-01-15T11:30:00'
-            }
-        ]
-    }
-]
-
+// Hauptkomponente
 export function SupportTickets() {
-    const [activeTab, setActiveTab] = useState('new')
-    const [selectedTicket, setSelectedTicket] = useState<typeof ticketHistory[0] | null>(null)
-    const [replyText, setReplyText] = useState('')
+    const { data: session } = useSession();
+    const { toast } = useToast();
+    const [activeTab, setActiveTab] = useState('new');
+    const [tickets, setTickets] = useState<Ticket[]>([]);
+    const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
+    const [replyText, setReplyText] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     // Formulardaten für neues Ticket
     const [newTicket, setNewTicket] = useState({
         subject: '',
         message: '',
-        priority: 'medium'
-    })
+        priority: 'medium' as 'low' | 'medium' | 'high'
+    });
 
-    const handleSubmitNewTicket = (e: React.FormEvent) => {
-        e.preventDefault()
-        // Hier würde normalerweise der API-Call zum Erstellen eines neuen Tickets erfolgen
-        alert('Ticket wurde erstellt! In einer realen Anwendung würde dies an einen Server gesendet werden.')
-        setNewTicket({
-            subject: '',
-            message: '',
-            priority: 'medium'
-        })
-    }
-
-    const handleSendReply = () => {
-        if (!replyText.trim() || !selectedTicket) return
-
-        // Hier würde normalerweise der API-Call zum Senden einer Antwort erfolgen
-        alert('Antwort wurde gesendet! In einer realen Anwendung würde dies an einen Server gesendet werden.')
-        setReplyText('')
-    }
-
-    // Hilfsfunktion zum Formatieren von Datum/Uhrzeit mit Zeit
-    const formatDateTime = (dateString: string) => {
-        const date = new Date(dateString)
-        return new Intl.DateTimeFormat('de-DE', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-        }).format(date)
-    }
-
-    // Status-Badge Styling
-    const getStatusBadge = (status: string) => {
-        switch (status) {
-            case 'open':
-                return <Badge className="bg-blue-50 text-blue-700 border border-blue-200">Offen</Badge>
-            case 'closed':
-                return <Badge className="bg-green-50 text-green-700 border border-green-200">Abgeschlossen</Badge>
-            case 'pending':
-                return <Badge className="bg-yellow-50 text-yellow-700 border border-yellow-200">Wartend</Badge>
-            default:
-                return <Badge>{status}</Badge>
+    // Tickets laden
+    useEffect(() => {
+        if (session) {
+            fetchTickets();
         }
-    }
+    }, [session]);
 
-    // Prioritäts-Badge Styling
-    const getPriorityBadge = (priority: string) => {
-        switch (priority) {
-            case 'high':
-                return <Badge className="bg-red-50 text-red-700 border border-red-200">Hoch</Badge>
-            case 'medium':
-                return <Badge className="bg-yellow-50 text-yellow-700 border border-yellow-200">Mittel</Badge>
-            case 'low':
-                return <Badge className="bg-green-50 text-green-700 border border-green-200">Niedrig</Badge>
-            default:
-                return <Badge>{priority}</Badge>
+    const fetchTickets = async () => {
+        try {
+            setIsLoading(true);
+            const response = await fetch('/api/support/tickets');
+
+            if (!response.ok) {
+                throw new Error('Fehler beim Laden der Tickets');
+            }
+
+            const data: TicketsResponse = await response.json();
+            setTickets(data.tickets || []);
+        } catch (error) {
+            console.error('Fehler beim Laden der Tickets:', error);
+            toast({
+                title: 'Fehler',
+                description: 'Die Tickets konnten nicht geladen werden.',
+                variant: 'destructive'
+            });
+        } finally {
+            setIsLoading(false);
         }
-    }
+    };
+
+    const fetchTicketDetails = async (ticketId: string) => {
+        try {
+            setIsLoading(true);
+            const response = await fetch(`/api/support/tickets/${ticketId}`);
+
+            if (!response.ok) {
+                throw new Error('Fehler beim Laden der Ticket-Details');
+            }
+
+            const data: TicketDetailResponse = await response.json();
+            if (data.success && data.ticket) {
+                setSelectedTicket(data.ticket);
+                setActiveTab('details');
+            }
+        } catch (error) {
+            console.error('Fehler beim Laden der Ticket-Details:', error);
+            toast({
+                title: 'Fehler',
+                description: 'Die Ticket-Details konnten nicht geladen werden.',
+                variant: 'destructive'
+            });
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleSubmitNewTicket = async (e: React.FormEvent) => {
+        e.preventDefault();
+
+        if (!newTicket.subject.trim() || !newTicket.message.trim()) {
+            toast({
+                title: 'Fehler',
+                description: 'Bitte füllen Sie alle Pflichtfelder aus.',
+                variant: 'destructive'
+            });
+            return;
+        }
+
+        try {
+            setIsSubmitting(true);
+            const response = await fetch('/api/support/tickets', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    subject: newTicket.subject,
+                    message: newTicket.message,
+                    priority: newTicket.priority
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error('Fehler beim Erstellen des Tickets');
+            }
+
+            const data = await response.json();
+
+            if (data.success) {
+                toast({
+                    title: 'Erfolg',
+                    description: 'Ihr Ticket wurde erfolgreich erstellt. Wir werden uns so schnell wie möglich bei Ihnen melden.',
+                    variant: 'default'
+                });
+
+                // Formular zurücksetzen
+                setNewTicket({
+                    subject: '',
+                    message: '',
+                    priority: 'medium'
+                });
+
+                // Tickets neu laden und zur Ticket-Liste wechseln
+                await fetchTickets();
+                setActiveTab('history');
+            }
+        } catch (error) {
+            console.error('Fehler beim Erstellen des Tickets:', error);
+            toast({
+                title: 'Fehler',
+                description: 'Das Ticket konnte nicht erstellt werden. Bitte versuchen Sie es später erneut.',
+                variant: 'destructive'
+            });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleSendReply = async () => {
+        if (!replyText.trim() || !selectedTicket) return;
+
+        try {
+            setIsSubmitting(true);
+            const response = await fetch(`/api/support/tickets/${selectedTicket._id}`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    message: replyText
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error('Fehler beim Senden der Antwort');
+            }
+
+            const data = await response.json();
+
+            if (data.success) {
+                toast({
+                    title: 'Erfolg',
+                    description: 'Ihre Antwort wurde erfolgreich gesendet.',
+                    variant: 'default'
+                });
+
+                setReplyText('');
+
+                // Ticket-Details aktualisieren
+                await fetchTicketDetails(selectedTicket._id);
+            }
+        } catch (error) {
+            console.error('Fehler beim Senden der Antwort:', error);
+            toast({
+                title: 'Fehler',
+                description: 'Die Antwort konnte nicht gesendet werden. Bitte versuchen Sie es später erneut.',
+                variant: 'destructive'
+            });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleCloseTicket = async () => {
+        if (!selectedTicket) return;
+
+        try {
+            setIsSubmitting(true);
+            const response = await fetch(`/api/support/tickets/${selectedTicket._id}`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    status: 'closed'
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error('Fehler beim Schließen des Tickets');
+            }
+
+            const data = await response.json();
+
+            if (data.success) {
+                toast({
+                    title: 'Erfolg',
+                    description: 'Das Ticket wurde erfolgreich geschlossen.',
+                    variant: 'default'
+                });
+
+                // Ticket-Details aktualisieren
+                await fetchTicketDetails(selectedTicket._id);
+            }
+        } catch (error) {
+            console.error('Fehler beim Schließen des Tickets:', error);
+            toast({
+                title: 'Fehler',
+                description: 'Das Ticket konnte nicht geschlossen werden. Bitte versuchen Sie es später erneut.',
+                variant: 'destructive'
+            });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
 
     return (
         <div className="space-y-6">
@@ -234,7 +399,7 @@ export function SupportTickets() {
                                         id="priority"
                                         className="w-full rounded-lg border border-gray-300 px-3 py-2"
                                         value={newTicket.priority}
-                                        onChange={(e) => setNewTicket({...newTicket, priority: e.target.value})}
+                                        onChange={(e) => setNewTicket({...newTicket, priority: e.target.value as 'low' | 'medium' | 'high'})}
                                     >
                                         <option value="low">Niedrig - Allgemeine Frage</option>
                                         <option value="medium">Mittel - Kleines Problem</option>
@@ -255,9 +420,22 @@ export function SupportTickets() {
                                 </div>
                             </CardContent>
                             <CardFooter>
-                                <Button type="submit" color="blue" className="w-full sm:w-auto">
-                                    <SendIcon className="mr-2 h-4 w-4" />
-                                    Ticket absenden
+                                <Button
+                                    type="submit"
+                                    disabled={isSubmitting}
+                                    className="w-full sm:w-auto"
+                                >
+                                    {isSubmitting ? (
+                                        <>
+                                            <LoaderIcon className="mr-2 h-4 w-4 animate-spin" />
+                                            Wird gesendet...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <SendIcon className="mr-2 h-4 w-4" />
+                                            Ticket absenden
+                                        </>
+                                    )}
                                 </Button>
                             </CardFooter>
                         </form>
@@ -273,20 +451,28 @@ export function SupportTickets() {
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
-                            {ticketHistory.length === 0 ? (
+                            {isLoading ? (
+                                <div className="flex justify-center py-6">
+                                    <LoaderIcon className="h-8 w-8 animate-spin text-blue-500" />
+                                </div>
+                            ) : tickets.length === 0 ? (
                                 <div className="text-center py-6">
+                                    <InfoIcon className="mx-auto h-12 w-12 text-slate-300 mb-4" />
                                     <p className="text-slate-500">Sie haben noch keine Support-Tickets erstellt.</p>
+                                    <Button
+                                        onClick={() => setActiveTab('new')}
+                                        className="mt-4"
+                                    >
+                                        Erstes Ticket erstellen
+                                    </Button>
                                 </div>
                             ) : (
                                 <div className="space-y-4">
-                                    {ticketHistory.map((ticket) => (
+                                    {tickets.map((ticket) => (
                                         <div
-                                            key={ticket.id}
+                                            key={ticket._id}
                                             className="p-4 border rounded-lg hover:bg-slate-50 cursor-pointer transition-colors"
-                                            onClick={() => {
-                                                setSelectedTicket(ticket)
-                                                setActiveTab('details')
-                                            }}
+                                            onClick={() => fetchTicketDetails(ticket._id)}
                                         >
                                             <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-2">
                                                 <h3 className="font-medium">{ticket.subject}</h3>
@@ -298,11 +484,11 @@ export function SupportTickets() {
                                             <div className="flex items-center text-sm text-slate-500 gap-4">
                                                 <span className="flex items-center">
                                                     <TicketIcon className="mr-1 h-3 w-3" />
-                                                    {ticket.id}
+                                                    {ticket.ticketNumber}
                                                 </span>
                                                 <span className="flex items-center">
                                                     <ClockIcon className="mr-1 h-3 w-3" />
-                                                    {formatDateTime(ticket.created)}
+                                                    {formatDateTime(ticket.createdAt)}
                                                 </span>
                                             </div>
                                         </div>
@@ -310,11 +496,29 @@ export function SupportTickets() {
                                 </div>
                             )}
                         </CardContent>
+                        <CardFooter>
+                            <Button
+                                onClick={fetchTickets}
+                                disabled={isLoading}
+                            >
+                                {isLoading ? (
+                                    <>
+                                        <LoaderIcon className="mr-2 h-4 w-4 animate-spin" />
+                                        Wird aktualisiert...
+                                    </>
+                                ) : (
+                                    <>
+                                        <RefreshIcon className="mr-2 h-4 w-4" />
+                                        Aktualisieren
+                                    </>
+                                )}
+                            </Button>
+                        </CardFooter>
                     </Card>
                 </TabContent>
 
                 {selectedTicket && (
-                    <TabContent value="details" label={`Ticket #${selectedTicket.id}`}>
+                    <TabContent value="details" label={`Ticket #${selectedTicket.ticketNumber}`}>
                         <Card>
                             <CardHeader>
                                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
@@ -330,15 +534,15 @@ export function SupportTickets() {
                                 <CardDescription className="flex flex-col sm:flex-row gap-4">
                                     <span className="flex items-center">
                                         <TicketIcon className="mr-1 h-3 w-3" />
-                                        Ticket #{selectedTicket.id}
+                                        Ticket #{selectedTicket.ticketNumber}
                                     </span>
                                     <span className="flex items-center">
                                         <ClockIcon className="mr-1 h-3 w-3" />
-                                        Erstellt: {formatDateTime(selectedTicket.created)}
+                                        Erstellt: {formatDateTime(selectedTicket.createdAt)}
                                     </span>
                                     <span className="flex items-center">
                                         <ClockIcon className="mr-1 h-3 w-3" />
-                                        Letztes Update: {formatDateTime(selectedTicket.updated)}
+                                        Letztes Update: {formatDateTime(selectedTicket.updatedAt)}
                                     </span>
                                 </CardDescription>
                             </CardHeader>
@@ -359,6 +563,7 @@ export function SupportTickets() {
                                                 <div className="text-sm mb-1">
                                                     <span className="font-medium">
                                                         {message.sender === 'user' ? 'Sie' : 'Support-Team'}
+                                                        {message.senderName && ` (${message.senderName})`}
                                                     </span>
                                                     <span className="text-slate-500 ml-2">
                                                         {formatDateTime(message.timestamp)}
@@ -367,12 +572,32 @@ export function SupportTickets() {
                                                 <div className="whitespace-pre-line">
                                                     {message.message}
                                                 </div>
+
+                                                {message.attachments && message.attachments.length > 0 && (
+                                                    <div className="mt-2 border-t border-gray-200 pt-2">
+                                                        <p className="text-xs text-slate-500 mb-1">Anhänge:</p>
+                                                        <div className="flex flex-wrap gap-2">
+                                                            {message.attachments.map((attachment, idx) => (
+                                                                <a
+                                                                    key={idx}
+                                                                    href={attachment.url}
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 bg-blue-50 px-2 py-1 rounded"
+                                                                >
+                                                                    <FileIcon className="h-3 w-3" />
+                                                                    {attachment.filename || `Anhang ${idx + 1}`}
+                                                                </a>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
                                     ))}
                                 </div>
 
-                                {selectedTicket.status === 'open' && (
+                                {selectedTicket.status !== 'closed' && (
                                     <div className="pt-4 border-t">
                                         <h3 className="font-medium mb-2">Ihre Antwort</h3>
                                         <div className="space-y-4">
@@ -382,9 +607,21 @@ export function SupportTickets() {
                                                 value={replyText}
                                                 onChange={(e) => setReplyText(e.target.value)}
                                             />
-                                            <Button onClick={handleSendReply} color="blue" data-disabled={!replyText.trim()}>
-                                                <SendIcon className="mr-2 h-4 w-4" />
-                                                Antwort senden
+                                            <Button
+                                                onClick={handleSendReply}
+                                                disabled={!replyText.trim() || isSubmitting}
+                                            >
+                                                {isSubmitting ? (
+                                                    <>
+                                                        <LoaderIcon className="mr-2 h-4 w-4 animate-spin" />
+                                                        Wird gesendet...
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <SendIcon className="mr-2 h-4 w-4" />
+                                                        Antwort senden
+                                                    </>
+                                                )}
                                             </Button>
                                         </div>
                                     </div>
@@ -399,18 +636,30 @@ export function SupportTickets() {
                             </CardContent>
                             <CardFooter className="flex justify-between">
                                 <Button
-                                    outline
-                                    onClick={() => setActiveTab('history')}
+                                    onClick={() => {
+                                        setActiveTab('history');
+                                        setSelectedTicket(null);
+                                    }}
                                 >
                                     Zurück zur Übersicht
                                 </Button>
 
-                                {selectedTicket.status === 'open' && (
+                                {selectedTicket.status !== 'closed' && (
                                     <Button
-                                        color="green"
+                                        onClick={handleCloseTicket}
+                                        disabled={isSubmitting}
                                     >
-                                        <CheckCircleIcon className="mr-2 h-4 w-4" />
-                                        Als gelöst markieren
+                                        {isSubmitting ? (
+                                            <>
+                                                <LoaderIcon className="mr-2 h-4 w-4 animate-spin" />
+                                                Wird geschlossen...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <CheckCircleIcon className="mr-2 h-4 w-4" />
+                                                Als gelöst markieren
+                                            </>
+                                        )}
                                     </Button>
                                 )}
                             </CardFooter>
@@ -419,5 +668,28 @@ export function SupportTickets() {
                 )}
             </SimpleTabs>
         </div>
-    )
+    );
+}
+
+// RefreshIcon Komponente, da sie in Lucide nicht explizit importiert wurde
+function RefreshIcon(props: React.SVGProps<SVGSVGElement>) {
+    return (
+        <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            {...props}
+        >
+            <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+            <path d="M21 3v5h-5" />
+            <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+            <path d="M3 21v-5h5" />
+        </svg>
+    );
 }

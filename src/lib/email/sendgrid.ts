@@ -9,7 +9,13 @@ sgMail.setApiKey(process.env.SENDGRID_API_KEY)
 // Email-Templates definieren
 const TEMPLATES = {
     EMAIL_CHANGE: 'd-976b58550a5743f99b199227dd4250d4',
-    BILLING_INVITE: 'd-1befa79015354ee0b4fdcbd189a8b8af'
+    BILLING_INVITE: 'd-1befa79015354ee0b4fdcbd189a8b8af',
+    // Neue Templates für das Ticket-System
+    NEW_TICKET: process.env.SENDGRID_TEMPLATE_NEW_TICKET || 'd-new-ticket-template-id',
+    TICKET_CONFIRMATION: process.env.SENDGRID_TEMPLATE_TICKET_CONFIRMATION || 'd-ticket-confirmation-template-id',
+    TICKET_UPDATE: process.env.SENDGRID_TEMPLATE_TICKET_UPDATE || 'd-ticket-update-template-id',
+    TICKET_REPLY: process.env.SENDGRID_TEMPLATE_TICKET_REPLY || 'd-ticket-reply-template-id',
+    TICKET_CLOSED: process.env.SENDGRID_TEMPLATE_TICKET_CLOSED || 'd-ticket-closed-template-id'
 }
 
 interface EmailTemplateData {
@@ -22,6 +28,24 @@ interface BillingInviteTemplateData {
     companyName: string
     verificationLink: string
     tempPassword: string
+}
+
+// Neue Interfaces für Ticket-Related Emails
+interface TicketNotificationData {
+    ticketNumber: string
+    subject: string
+    message: string
+    userName: string
+    userEmail: string
+    priority: string
+}
+
+interface TicketReplyData {
+    ticketNumber: string
+    subject: string
+    message: string
+    recipientName: string
+    recipientEmail: string
 }
 
 export async function sendChangeEmailVerification(
@@ -101,3 +125,165 @@ export async function sendBillingInvitation(
     }
 }
 
+// Neue Funktionen für das Ticket-System
+
+/**
+ * Sendet eine Benachrichtigung an das Support-Team, wenn ein neues Ticket erstellt wird
+ */
+export async function sendNewTicketNotification(data: TicketNotificationData) {
+    try {
+        const supportEmail = process.env.SUPPORT_EMAIL || 'support@sk-online-marketing.de';
+
+        console.log('--- [DEBUG] Sende New-Ticket-Notification:');
+        console.log('Empfänger:', supportEmail);
+        console.log('Ticket:', data.ticketNumber);
+        console.log('Betreff:', data.subject);
+        console.log('Von:', data.userName, data.userEmail);
+        console.log('Priorität:', data.priority);
+
+        const msg = {
+            to: supportEmail,
+            from: {
+                email: process.env.SENDGRID_FROM_EMAIL!,
+                name: 'SK Online Marketing Support',
+            },
+            replyTo: data.userEmail,
+            templateId: TEMPLATES.NEW_TICKET,
+            dynamicTemplateData: {
+                ticketNumber: data.ticketNumber,
+                subject: data.subject,
+                message: data.message,
+                userName: data.userName,
+                userEmail: data.userEmail,
+                priority: data.priority,
+                dashboardUrl: `${process.env.NEXT_PUBLIC_URL}/studio/desk/supportTicket`
+            }
+        };
+
+        await sgMail.send(msg);
+        console.log('✅ Ticket-Benachrichtigung erfolgreich gesendet an:', supportEmail);
+
+        // Bestätigungsmail an den Kunden senden
+        await sendTicketConfirmation({
+            ticketNumber: data.ticketNumber,
+            subject: data.subject,
+            recipientName: data.userName,
+            recipientEmail: data.userEmail
+        });
+
+        return true;
+    } catch (error) {
+        console.error('❌ SendGrid Fehler bei Ticket-Benachrichtigung:', error);
+        throw new Error('Fehler beim Senden der Ticket-Benachrichtigung');
+    }
+}
+
+/**
+ * Sendet eine Bestätigung an den Kunden, dass sein Ticket eingegangen ist
+ */
+export async function sendTicketConfirmation(data: {
+    ticketNumber: string;
+    subject: string;
+    recipientName: string;
+    recipientEmail: string;
+}) {
+    try {
+        console.log('--- [DEBUG] Sende Ticket-Confirmation:');
+        console.log('Empfänger:', data.recipientEmail);
+        console.log('Ticket:', data.ticketNumber);
+
+        const msg = {
+            to: data.recipientEmail,
+            from: {
+                email: process.env.SENDGRID_FROM_EMAIL!,
+                name: 'SK Online Marketing Support',
+            },
+            templateId: TEMPLATES.TICKET_CONFIRMATION,
+            dynamicTemplateData: {
+                ticketNumber: data.ticketNumber,
+                subject: data.subject,
+                recipientName: data.recipientName,
+                dashboardUrl: `${process.env.NEXT_PUBLIC_URL}/dashboard/support`
+            }
+        };
+
+        await sgMail.send(msg);
+        console.log('✅ Ticket-Bestätigung erfolgreich gesendet an:', data.recipientEmail);
+        return true;
+    } catch (error) {
+        console.error('❌ SendGrid Fehler bei Ticket-Bestätigung:', error);
+        throw new Error('Fehler beim Senden der Ticket-Bestätigung');
+    }
+}
+
+/**
+ * Sendet eine Benachrichtigung, wenn ein Support-Mitarbeiter auf ein Ticket antwortet
+ */
+export async function sendTicketReplyNotification(data: TicketReplyData) {
+    try {
+        console.log('--- [DEBUG] Sende Ticket-Reply-Notification:');
+        console.log('Empfänger:', data.recipientEmail);
+        console.log('Ticket:', data.ticketNumber);
+
+        const msg = {
+            to: data.recipientEmail,
+            from: {
+                email: process.env.SENDGRID_FROM_EMAIL!,
+                name: 'SK Online Marketing Support',
+            },
+            templateId: TEMPLATES.TICKET_REPLY,
+            dynamicTemplateData: {
+                ticketNumber: data.ticketNumber,
+                subject: data.subject,
+                message: data.message,
+                recipientName: data.recipientName,
+                dashboardUrl: `${process.env.NEXT_PUBLIC_URL}/dashboard/support`
+            }
+        };
+
+        await sgMail.send(msg);
+        console.log('✅ Ticket-Antwort-Benachrichtigung erfolgreich gesendet an:', data.recipientEmail);
+        return true;
+    } catch (error) {
+        console.error('❌ SendGrid Fehler bei Ticket-Antwort:', error);
+        throw new Error('Fehler beim Senden der Ticket-Antwort-Benachrichtigung');
+    }
+}
+
+/**
+ * Sendet eine Benachrichtigung, wenn ein Ticket geschlossen wurde
+ */
+export async function sendTicketClosedNotification(data: {
+    ticketNumber: string;
+    subject: string;
+    recipientName: string;
+    recipientEmail: string;
+}) {
+    try {
+        console.log('--- [DEBUG] Sende Ticket-Closed-Notification:');
+        console.log('Empfänger:', data.recipientEmail);
+        console.log('Ticket:', data.ticketNumber);
+
+        const msg = {
+            to: data.recipientEmail,
+            from: {
+                email: process.env.SENDGRID_FROM_EMAIL!,
+                name: 'SK Online Marketing Support',
+            },
+            templateId: TEMPLATES.TICKET_CLOSED,
+            dynamicTemplateData: {
+                ticketNumber: data.ticketNumber,
+                subject: data.subject,
+                recipientName: data.recipientName,
+                dashboardUrl: `${process.env.NEXT_PUBLIC_URL}/dashboard/support`
+            }
+        };
+
+        await sgMail.send(msg);
+        console.log('✅ Ticket-Abschluss-Benachrichtigung erfolgreich gesendet an:', data.recipientEmail);
+        return true;
+    } catch (error) {
+        console.error('❌ SendGrid Fehler bei Ticket-Abschluss:', error);
+        throw new Error('Fehler beim Senden der Ticket-Abschluss-Benachrichtigung');
+    }
+}

@@ -8,7 +8,10 @@ import { zusatzleistungenSchema } from './zusatzleistungen'
 import { rechnungenSchema } from './rechnungen'
 import { emailVerificationSchema } from './emailVerification'
 import { activityLogSchema } from './activityLog'
-import { vertragsdokumenteSchema } from './vertragsdokumente'  // Neu importiert
+import { vertragsdokumenteSchema } from './vertragsdokumente'
+import { supportTicketSchema } from './supportTicket'  // Neu importiert
+import { billingInviteSchema } from './billingInvite'
+import { botEventSchema } from './botEvent'
 
 // Schema Types Array für Sanity Konfiguration
 // Reihenfolge ist wichtig: Basis-Schemas zuerst, dann abhängige Schemas
@@ -19,11 +22,16 @@ const schemaTypes = [
   environmentSchema,
   vertragsmodelleSchema,
   zusatzleistungenSchema,
-  vertragsdokumenteSchema, // Neue Schema-Referenz hinzugefügt
+  vertragsdokumenteSchema,
+
+  // Abhängige Schemas
   projektSchema,
   rechnungenSchema,
   emailVerificationSchema,
-  activityLogSchema
+  activityLogSchema,
+  billingInviteSchema,
+  botEventSchema,
+  supportTicketSchema  // Neu hinzugefügt
 ]
 
 export default schemaTypes
