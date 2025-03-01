@@ -152,18 +152,6 @@ export function FAQSection() {
                 </CardContent>
             </Card>
 
-            <Card>
-                <CardHeader>
-                    <CardTitle>Können wir Ihnen noch helfen?</CardTitle>
-                    <CardDescription>
-                        Wenn Sie weitere Fragen haben, kontaktieren Sie uns gerne.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className="flex flex-col sm:flex-row gap-4">
-                    <Button outline className="flex-1">Support-Ticket erstellen</Button>
-                    <Button color="blue" className="flex-1">Direkter Kontakt</Button>
-                </CardContent>
-            </Card>
         </div>
     )
 }

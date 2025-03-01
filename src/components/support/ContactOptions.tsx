@@ -143,42 +143,7 @@ export function ContactOptions() {
                 </CardContent>
             </Card>
 
-            <Card>
-                <CardHeader>
-                    <CardTitle>Häufig kontaktierte Teams</CardTitle>
-                </CardHeader>
-                <CardContent className="grid gap-4 md:grid-cols-3">
-                    <div className="p-4 rounded-lg border hover:bg-slate-50 transition-colors cursor-pointer">
-                        <h3 className="font-medium mb-2">Technischer Support</h3>
-                        <p className="text-sm text-slate-500 mb-2">
-                            Für technische Probleme mit dem Chatbot oder der Integration
-                        </p>
-                        <p className="text-xs text-blue-600">
-                            tech-support@sk-online-marketing.de
-                        </p>
-                    </div>
 
-                    <div className="p-4 rounded-lg border hover:bg-slate-50 transition-colors cursor-pointer">
-                        <h3 className="font-medium mb-2">Vertragsmanagement</h3>
-                        <p className="text-sm text-slate-500 mb-2">
-                            Für Vertragsänderungen, Upgrades oder Fragen zur Abrechnung
-                        </p>
-                        <p className="text-xs text-blue-600">
-                            vertraege@sk-online-marketing.de
-                        </p>
-                    </div>
-
-                    <div className="p-4 rounded-lg border hover:bg-slate-50 transition-colors cursor-pointer">
-                        <h3 className="font-medium mb-2">Inhalts-Team</h3>
-                        <p className="text-sm text-slate-500 mb-2">
-                            Für Anpassungen und Verbesserungen der Chatbot-Inhalte
-                        </p>
-                        <p className="text-xs text-blue-600">
-                            content@sk-online-marketing.de
-                        </p>
-                    </div>
-                </CardContent>
-            </Card>
         </div>
     )
 }

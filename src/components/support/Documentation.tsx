@@ -363,35 +363,6 @@ NEXT_PUBLIC_BOTPRESS_WORKSPACE_ID="${environment.workspaceId}"
                 </CardContent>
             </Card>
 
-            <Card>
-                <CardHeader>
-                    <CardTitle>Technische Ressourcen</CardTitle>
-                    <CardDescription>
-                        Zusätzliche technische Ressourcen und Anleitungen
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className="grid gap-4 md:grid-cols-2">
-                    <a href="#" className="block p-4 rounded-lg border hover:bg-slate-50 transition-colors">
-                        <h3 className="font-medium">Vollständige API-Dokumentation</h3>
-                        <p className="text-sm text-slate-500 mt-1">Detaillierte Dokumentation für fortgeschrittene Integrationen</p>
-                    </a>
-
-                    <a href="#" className="block p-4 rounded-lg border hover:bg-slate-50 transition-colors">
-                        <h3 className="font-medium">Chatbot-Anpassung</h3>
-                        <p className="text-sm text-slate-500 mt-1">Anleitung zur Anpassung des Chatbot-Aussehens</p>
-                    </a>
-
-                    <a href="#" className="block p-4 rounded-lg border hover:bg-slate-50 transition-colors">
-                        <h3 className="font-medium">Analytics & Tracking</h3>
-                        <p className="text-sm text-slate-500 mt-1">Einrichtung von benutzerdefinierten Tracking-Events</p>
-                    </a>
-
-                    <a href="#" className="block p-4 rounded-lg border hover:bg-slate-50 transition-colors">
-                        <h3 className="font-medium">Fehlerbehebung</h3>
-                        <p className="text-sm text-slate-500 mt-1">Häufige Fehler und deren Behebung</p>
-                    </a>
-                </CardContent>
-            </Card>
         </div>
     )
 }
