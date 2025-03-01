@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Search } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 
+
 // FAQ-Daten - Später können diese aus Sanity geladen werden
 const faqs = [
     {
