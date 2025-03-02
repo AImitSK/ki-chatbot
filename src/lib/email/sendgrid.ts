@@ -11,11 +11,11 @@ const TEMPLATES = {
     EMAIL_CHANGE: 'd-976b58550a5743f99b199227dd4250d4',
     BILLING_INVITE: 'd-1befa79015354ee0b4fdcbd189a8b8af',
     // Neue Templates für das Ticket-System
-    NEW_TICKET: process.env.SENDGRID_TEMPLATE_NEW_TICKET || 'd-new-ticket-template-id',
-    TICKET_CONFIRMATION: process.env.SENDGRID_TEMPLATE_TICKET_CONFIRMATION || 'd-ticket-confirmation-template-id',
-    TICKET_UPDATE: process.env.SENDGRID_TEMPLATE_TICKET_UPDATE || 'd-ticket-update-template-id',
-    TICKET_REPLY: process.env.SENDGRID_TEMPLATE_TICKET_REPLY || 'd-ticket-reply-template-id',
-    TICKET_CLOSED: process.env.SENDGRID_TEMPLATE_TICKET_CLOSED || 'd-ticket-closed-template-id'
+    NEW_TICKET: process.env.SENDGRID_TEMPLATE_NEW_TICKET || 'd-d624125df1554f69b9b34701ab222d17',
+    TICKET_CONFIRMATION: process.env.SENDGRID_TEMPLATE_TICKET_CONFIRMATION || 'd-d1685b6972794568ab6007c9c56d412d',
+    TICKET_UPDATE: process.env.SENDGRID_TEMPLATE_TICKET_UPDATE || 'd-cf69f6567f1d44ff89acb7286ed79f87',
+    TICKET_REPLY: process.env.SENDGRID_TEMPLATE_TICKET_REPLY || 'd-ea49efa84dee41cfb57ff43fb6c7aeb6',
+    TICKET_CLOSED: process.env.SENDGRID_TEMPLATE_TICKET_CLOSED || 'd-cf080f8cab37491dafba7127d94c32f7'
 }
 
 interface EmailTemplateData {
