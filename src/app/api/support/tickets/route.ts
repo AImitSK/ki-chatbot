@@ -103,15 +103,21 @@ export async function POST(req: NextRequest) {
     try {
         const session = await getServerSession()
 
+        console.log('Session:', session);
+
         if (!session?.user?.email) {
             return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 })
         }
 
         const body = await req.json()
+        console.log('Request body:', body);
 
         // Daten validieren
         const validationResult = newTicketSchema.safeParse(body)
+        console.log('Validation result:', validationResult);
+
         if (!validationResult.success) {
+            console.error('Validation error:', validationResult.error.format());
             return NextResponse.json(
                 { error: 'Ungültige Daten', details: validationResult.error.format() },
                 { status: 400 }

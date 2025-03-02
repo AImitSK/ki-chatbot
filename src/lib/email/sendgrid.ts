@@ -18,6 +18,10 @@ const TEMPLATES = {
     TICKET_CLOSED: process.env.SENDGRID_TEMPLATE_TICKET_CLOSED || 'd-cf080f8cab37491dafba7127d94c32f7'
 }
 
+// Absender-E-Mail-Adresse (geändert auf info@)
+const FROM_EMAIL = 'info@sk-online-marketing.de';
+const FROM_NAME = 'SK Online Marketing';
+
 interface EmailTemplateData {
     userName: string
     verificationLink: string
@@ -64,8 +68,8 @@ export async function sendChangeEmailVerification(
     const msg = {
         to,
         from: {
-            email: process.env.SENDGRID_FROM_EMAIL!,
-            name: 'SK Online Marketing',
+            email: FROM_EMAIL,
+            name: FROM_NAME,
         },
         templateId: TEMPLATES.EMAIL_CHANGE,
         dynamicTemplateData: {
@@ -103,8 +107,8 @@ export async function sendBillingInvitation(
     const msg = {
         to,
         from: {
-            email: process.env.SENDGRID_FROM_EMAIL!,
-            name: 'SK Online Marketing',
+            email: FROM_EMAIL,
+            name: FROM_NAME,
         },
         templateId: TEMPLATES.BILLING_INVITE,
         dynamicTemplateData: {
@@ -132,7 +136,7 @@ export async function sendBillingInvitation(
  */
 export async function sendNewTicketNotification(data: TicketNotificationData) {
     try {
-        const supportEmail = process.env.SUPPORT_EMAIL || 'support@sk-online-marketing.de';
+        const supportEmail = process.env.SUPPORT_EMAIL || 'info@sk-online-marketing.de';
 
         console.log('--- [DEBUG] Sende New-Ticket-Notification:');
         console.log('Empfänger:', supportEmail);
@@ -144,8 +148,8 @@ export async function sendNewTicketNotification(data: TicketNotificationData) {
         const msg = {
             to: supportEmail,
             from: {
-                email: process.env.SENDGRID_FROM_EMAIL!,
-                name: 'SK Online Marketing Support',
+                email: FROM_EMAIL,
+                name: `${FROM_NAME} Support`,
             },
             replyTo: data.userEmail,
             templateId: TEMPLATES.NEW_TICKET,
@@ -156,7 +160,8 @@ export async function sendNewTicketNotification(data: TicketNotificationData) {
                 userName: data.userName,
                 userEmail: data.userEmail,
                 priority: data.priority,
-                dashboardUrl: `${process.env.NEXT_PUBLIC_URL}/studio/desk/supportTicket`
+                dashboardUrl: `${process.env.NEXT_PUBLIC_URL}/studio/desk/supportTicket`,
+                timestamp: new Date().toISOString()
             }
         };
 
@@ -195,15 +200,16 @@ export async function sendTicketConfirmation(data: {
         const msg = {
             to: data.recipientEmail,
             from: {
-                email: process.env.SENDGRID_FROM_EMAIL!,
-                name: 'SK Online Marketing Support',
+                email: FROM_EMAIL,
+                name: `${FROM_NAME} Support`,
             },
             templateId: TEMPLATES.TICKET_CONFIRMATION,
             dynamicTemplateData: {
                 ticketNumber: data.ticketNumber,
                 subject: data.subject,
                 recipientName: data.recipientName,
-                dashboardUrl: `${process.env.NEXT_PUBLIC_URL}/dashboard/support`
+                dashboardUrl: `${process.env.NEXT_PUBLIC_URL}/dashboard/support`,
+                timestamp: new Date().toISOString()
             }
         };
 
@@ -228,8 +234,8 @@ export async function sendTicketReplyNotification(data: TicketReplyData) {
         const msg = {
             to: data.recipientEmail,
             from: {
-                email: process.env.SENDGRID_FROM_EMAIL!,
-                name: 'SK Online Marketing Support',
+                email: FROM_EMAIL,
+                name: `${FROM_NAME} Support`,
             },
             templateId: TEMPLATES.TICKET_REPLY,
             dynamicTemplateData: {
@@ -237,7 +243,8 @@ export async function sendTicketReplyNotification(data: TicketReplyData) {
                 subject: data.subject,
                 message: data.message,
                 recipientName: data.recipientName,
-                dashboardUrl: `${process.env.NEXT_PUBLIC_URL}/dashboard/support`
+                dashboardUrl: `${process.env.NEXT_PUBLIC_URL}/dashboard/support`,
+                timestamp: new Date().toISOString()
             }
         };
 
@@ -267,15 +274,16 @@ export async function sendTicketClosedNotification(data: {
         const msg = {
             to: data.recipientEmail,
             from: {
-                email: process.env.SENDGRID_FROM_EMAIL!,
-                name: 'SK Online Marketing Support',
+                email: FROM_EMAIL,
+                name: `${FROM_NAME} Support`,
             },
             templateId: TEMPLATES.TICKET_CLOSED,
             dynamicTemplateData: {
                 ticketNumber: data.ticketNumber,
                 subject: data.subject,
                 recipientName: data.recipientName,
-                dashboardUrl: `${process.env.NEXT_PUBLIC_URL}/dashboard/support`
+                dashboardUrl: `${process.env.NEXT_PUBLIC_URL}/dashboard/support`,
+                timestamp: new Date().toISOString()
             }
         };
 
