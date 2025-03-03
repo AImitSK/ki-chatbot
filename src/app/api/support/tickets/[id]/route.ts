@@ -4,6 +4,7 @@ import { getServerSession } from 'next-auth'
 import { client as sanityClient, writeClient } from '@/lib/sanity/client'
 import { sendTicketReplyNotification, sendTicketClosedNotification } from '@/lib/email/sendgrid'
 import { z } from 'zod'
+import { nanoid } from 'nanoid' // Falls nicht vorhanden, eine alternative Implementierung verwenden
 
 // Schema für neue Nachrichten
 const messageSchema = z.object({
@@ -18,12 +19,14 @@ const statusUpdateSchema = z.object({
 
 // Typdefinitionen
 interface TicketMessage {
+    _key: string; // Eindeutiger Schlüssel für Sanity-Arrays
     sender: 'user' | 'support';
     message: string;
     timestamp: string;
     senderName?: string;
     senderEmail?: string;
     attachments?: Array<{
+        _key: string;
         _type: string;
         asset: {
             _type: string;
@@ -56,6 +59,16 @@ interface Ticket {
         titel: string;
     };
     internalNotes?: string;
+}
+
+// Generiere einen eindeutigen Key für Array-Elemente
+function generateKey() {
+    return nanoid(12); // Erzeugt eine zufällige ID mit 12 Zeichen
+}
+
+// Alternative ohne nanoid
+function generateSimpleKey() {
+    return Math.random().toString(36).substring(2, 15);
 }
 
 // GET: Details eines bestimmten Tickets abrufen
@@ -118,6 +131,7 @@ export async function GET(
                     titel
                 },
                 messages[] {
+                    _key,
                     sender,
                     message,
                     timestamp,
@@ -229,20 +243,22 @@ export async function PATCH(
 
             const { message, attachments } = validationResult.data
 
-            // Neue Nachricht erstellen
+            // Neue Nachricht erstellen mit einem eindeutigen Schlüssel
             const newMessage: TicketMessage = {
+                _key: generateKey(), // Wichtig für Sanity-Arrays
                 sender: 'user',
                 message,
                 timestamp: new Date().toISOString(),
                 senderName: user.name,
                 senderEmail: user.email,
                 attachments: attachments ? attachments.map(attachment => ({
+                    _key: generateKey(),
                     _type: 'file',
                     asset: {
                         _type: 'reference',
                         _ref: attachment
                     }
-                })) : []
+                })) : undefined
             }
 
             // Wenn das Ticket geschlossen war und eine neue Nachricht hinzugefügt wird, wieder öffnen
@@ -251,7 +267,7 @@ export async function PATCH(
             }
 
             // Nachricht zum Ticket hinzufügen
-            updates.messages = [...ticket.messages, newMessage]
+            updates.messages = [...(ticket.messages || []), newMessage]
             updates.updatedAt = new Date().toISOString()
 
             // Support per E-Mail benachrichtigen (falls die Nachricht vom Kunden kommt)
@@ -262,7 +278,7 @@ export async function PATCH(
                         subject: ticket.subject,
                         message,
                         recipientName: 'Support-Team',
-                        recipientEmail: process.env.SUPPORT_EMAIL || 'support@sk-online-marketing.de'
+                        recipientEmail: process.env.SUPPORT_EMAIL || 'info@sk-online-marketing.de'
                     })
                 } catch (error) {
                     console.error('Fehler beim Senden der E-Mail-Benachrichtigung:', error)
@@ -314,16 +330,21 @@ export async function PATCH(
                 .commit()
 
             // Activity-Log erstellen
-            await writeClient.create({
-                _type: 'activityLog',
-                activityType: body.message ? 'ticket.message_added' : 'ticket.status_changed',
-                details: body.message
-                    ? `Neue Nachricht zu Ticket ${ticket.ticketNumber} hinzugefügt`
-                    : `Status von Ticket ${ticket.ticketNumber} geändert zu ${body.status}`,
-                timestamp: new Date().toISOString(),
-                userId: user._id,
-                userEmail: user.email
-            })
+            try {
+                await writeClient.create({
+                    _type: 'activityLog',
+                    activityType: body.message ? 'ticket.message_added' : 'ticket.status_changed',
+                    details: body.message
+                        ? `Neue Nachricht zu Ticket ${ticket.ticketNumber} hinzugefügt`
+                        : `Status von Ticket ${ticket.ticketNumber} geändert zu ${body.status}`,
+                    timestamp: new Date().toISOString(),
+                    userId: user._id,
+                    userEmail: user.email
+                })
+            } catch (error) {
+                console.error('Fehler beim Erstellen des Activity-Logs:', error);
+                // Prozess fortsetzen trotz Fehler
+            }
 
             return NextResponse.json({ ticket: updatedTicket, success: true })
         } else {
@@ -387,14 +408,19 @@ export async function DELETE(
         await writeClient.delete(ticketId)
 
         // Activity-Log erstellen
-        await writeClient.create({
-            _type: 'activityLog',
-            activityType: 'ticket.deleted',
-            details: `Ticket ${ticket.ticketNumber} gelöscht`,
-            timestamp: new Date().toISOString(),
-            userId: user._id,
-            userEmail: user.email
-        })
+        try {
+            await writeClient.create({
+                _type: 'activityLog',
+                activityType: 'ticket.deleted',
+                details: `Ticket ${ticket.ticketNumber} gelöscht`,
+                timestamp: new Date().toISOString(),
+                userId: user._id,
+                userEmail: user.email
+            })
+        } catch (error) {
+            console.error('Fehler beim Erstellen des Activity-Logs:', error);
+            // Prozess fortsetzen trotz Fehler
+        }
 
         return NextResponse.json({ success: true })
     } catch (error) {

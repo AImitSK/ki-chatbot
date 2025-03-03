@@ -4,11 +4,12 @@ import { getServerSession } from 'next-auth'
 import { client as sanityClient, writeClient } from '@/lib/sanity/client'
 import { sendNewTicketNotification } from '@/lib/email/sendgrid'
 import { z } from 'zod'
+import { nanoid } from 'nanoid' // Falls nicht verfügbar, können Sie diese Funktion selbst implementieren
 
 // Schema für neue Tickets
 const newTicketSchema = z.object({
     subject: z.string().min(3).max(100),
-    message: z.string().min(10),
+    message: z.string().min(10), // Mindestens 10 Zeichen für die Nachricht
     priority: z.enum(['low', 'medium', 'high']),
     projectId: z.string().optional(),
     attachments: z.array(z.string()).optional()
@@ -22,24 +23,36 @@ interface TicketData {
     status: string;
     priority: "medium" | "low" | "high";
     createdBy: { _type: string; _ref: string };
-    messages: {
+    messages: Array<{
+        _key: string; // Wichtig: Eindeutiger Key für Sanity-Arrays
         sender: string;
         message: string;
         timestamp: string;
         senderName: string;
         senderEmail: string;
-        attachments: {
+        attachments?: Array<{
+            _key: string; // Auch für Anhänge-Array
             _type: string;
             asset: {
                 _type: string;
                 _ref: string;
             };
-        }[];
-    }[];
+        }>;
+    }>;
     createdAt: string;
     updatedAt: string;
-    projekt?: { _type: string; _ref: string };  // Optional projektId
+    projekt?: { _type: string; _ref: string };
     internalNotes?: string;
+}
+
+// Generiere einen eindeutigen Key für Array-Elemente
+function generateKey() {
+    return nanoid(12); // Erzeugt eine zufällige ID mit 12 Zeichen
+}
+
+// Alternative ohne nanoid
+function generateSimpleKey() {
+    return Math.random().toString(36).substring(2, 15);
 }
 
 // Generiere Ticket-Nummer
@@ -143,14 +156,16 @@ export async function POST(req: NextRequest) {
         // Ticket-Nummer generieren
         const ticketNumber = generateTicketNumber()
 
-        // Nachrichten-Array erstellen
+        // Nachrichten-Array erstellen mit Schlüsseln für jedes Element
         const messages = [{
+            _key: generateKey(), // WICHTIG: Eindeutiger Schlüssel für das Array-Element
             sender: 'user',
             message,
             timestamp: new Date().toISOString(),
             senderName: user.name,
             senderEmail: user.email,
             attachments: attachments ? attachments.map(attachment => ({
+                _key: generateKey(), // Eindeutiger Schlüssel für jeden Anhang
                 _type: 'file',
                 asset: {
                     _type: 'reference',
@@ -181,24 +196,34 @@ export async function POST(req: NextRequest) {
         const ticket = await writeClient.create(ticketData)
 
         // Support-Team über das neue Ticket informieren
-        await sendNewTicketNotification({
-            ticketNumber,
-            subject,
-            message,
-            userName: user.name,
-            userEmail: user.email,
-            priority
-        })
+        try {
+            await sendNewTicketNotification({
+                ticketNumber,
+                subject,
+                message,
+                userName: user.name,
+                userEmail: user.email,
+                priority
+            })
+        } catch (emailError) {
+            console.error('Fehler beim Senden der E-Mail-Benachrichtigung:', emailError);
+            // Wir setzen den Prozess fort, auch wenn die E-Mail-Benachrichtigung fehlschlägt
+        }
 
         // Activity-Log erstellen
-        await writeClient.create({
-            _type: 'activityLog',
-            activityType: 'ticket.created',
-            details: `Ticket ${ticketNumber} erstellt: ${subject}`,
-            timestamp: new Date().toISOString(),
-            userId: user._id,
-            userEmail: user.email
-        })
+        try {
+            await writeClient.create({
+                _type: 'activityLog',
+                activityType: 'ticket.created',
+                details: `Ticket ${ticketNumber} erstellt: ${subject}`,
+                timestamp: new Date().toISOString(),
+                userId: user._id,
+                userEmail: user.email
+            })
+        } catch (logError) {
+            console.error('Fehler beim Erstellen des Activity-Logs:', logError);
+            // Auch hier setzen wir den Prozess fort
+        }
 
         return NextResponse.json({ ticket, success: true }, { status: 201 })
     } catch (error) {
